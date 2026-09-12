@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+build/
+dist/
+db.sqlite3
+
+# Data & vector store
+data/raw/
+data/processed/
+*.faiss
+*.index
+chroma/
+
+# IDE
+.vscode/*
+!.vscode/launch.json
+.idea/

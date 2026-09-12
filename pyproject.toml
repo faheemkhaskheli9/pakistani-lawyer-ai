@@ -1,0 +1,11 @@
+[project]
+name = "pakistani-lawyer-ai"
+version = "0.1.0"
+description = "Retrieval-grounded legal information assistant over public-domain Pakistani statutes and case law"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]

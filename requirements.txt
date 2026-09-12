@@ -1,0 +1,2 @@
+# Placeholder until Phase 1 implementation starts.
+# See README.md Section 3 (Technology Stack) for the intended dependency set.
