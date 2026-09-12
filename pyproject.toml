@@ -5,9 +5,15 @@ description = "Retrieval-grounded legal information assistant over public-domain
 requires-python = ">=3.10"
 dependencies = [
     "pypdf>=4.0",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
+# Only needed for EMBEDDING_PROVIDER=sentence-transformers; the default
+# "hashing" provider needs neither this nor a model download.
+embeddings = [
+    "sentence-transformers>=2.2",
+]
 dev = [
     "pytest>=8.0",
 ]
