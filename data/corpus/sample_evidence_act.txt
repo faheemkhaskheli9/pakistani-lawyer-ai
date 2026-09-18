@@ -1,0 +1,29 @@
+Sample Evidence Act (Illustrative Demo Text)
+
+This document is an original, fictional sample authored for this project
+to illustrate how a general law of evidence might be structured. It does
+not reproduce, paraphrase, or derive from any specific real statute of
+Pakistan or any other jurisdiction, and must not be relied on as legal
+authority or legal advice.
+
+Section 1. Relevancy of Facts
+Facts which, though not in issue, are so connected with a fact in issue
+as to form part of the same transaction are relevant, whether they
+occurred at the same time and place or at different times and places.
+
+Section 2. Admissions
+An admission is a statement, oral or documentary, which suggests any
+inference as to a fact in issue or relevant fact, made by a party to the
+proceeding or a person with an interest in its subject matter.
+
+Section 3. Dying Declaration
+A statement made by a person as to the cause of that person's death, or
+as to any circumstance of the transaction which resulted in death, is
+relevant in a case in which the cause of that person's death comes into
+question, whether or not the person was under expectation of death when
+the statement was made.
+
+Section 4. Burden of Proof
+The burden of proving a fact rests on the party who asserts the
+affirmative of the issue, and not on the party who denies it, except
+where a specific law otherwise provides that the burden lies elsewhere.

@@ -1,0 +1,34 @@
+Sample Criminal Procedure Code (Illustrative Demo Text)
+
+This document is an original, fictional sample authored for this project
+to illustrate how a general code of criminal procedure might be structured.
+It does not reproduce, paraphrase, or derive from any specific real statute
+of Pakistan or any other jurisdiction, and must not be relied on as legal
+authority or legal advice.
+
+Section 1. Cognizable and Non-Cognizable Offences
+An offence is "cognizable" when a police officer may, in accordance with
+the rules made under this Code, arrest a person without a warrant. An
+offence is "non-cognizable" when a police officer has no such authority
+without the order of a competent court.
+
+Section 2. First Information Report
+Every information relating to the commission of a cognizable offence, if
+given orally to an officer in charge of a police station, shall be
+reduced to writing, read over to the informant, and signed by the person
+giving it. A copy shall be given free of cost to the informant.
+
+Section 3. Bail in Non-Cognizable Cases
+When a person accused of a non-cognizable offence is arrested without a
+warrant, that person shall be entitled to be released on bail, subject to
+such conditions as the court may reasonably impose to secure attendance.
+
+Section 4. Powers of Investigation
+An officer in charge of a police station may, without the order of a
+magistrate, investigate any cognizable case which a court having
+jurisdiction over the local area would have power to inquire into or try.
+
+Article 5. Right to Fair Trial
+Every accused person is entitled to a fair trial before an independent
+and impartial court, to be informed promptly of the charge against them,
+and to adequate time and facilities to prepare a defence.

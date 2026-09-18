@@ -1,0 +1,36 @@
+Sample Civil Code (Illustrative Demo Text)
+
+This document is an original, fictional sample authored for this project to
+illustrate how a general civil code might be structured. It does not
+reproduce, paraphrase, or derive from any specific real statute of Pakistan
+or any other jurisdiction, and must not be relied on as legal authority or
+legal advice.
+
+Section 1. Definitions
+In this Code, "person" includes an individual, a partnership, and a body
+corporate, unless the context otherwise requires. "Contract" means an
+agreement enforceable by law between two or more persons.
+
+Section 2. Capacity to Contract
+Every person is competent to contract who is of the age of majority
+according to the law to which such person is subject, who is of sound
+mind, and who is not disqualified from contracting by any law to which
+such person is subject.
+
+Section 3. Free Consent
+Consent is said to be free when it is not caused by coercion, undue
+influence, fraud, misrepresentation, or mistake, as those terms are
+defined elsewhere in this Code. An agreement without free consent is
+voidable at the option of the party whose consent was not free.
+
+Section 4. Void Agreements
+An agreement made without lawful consideration, or in restraint of a
+lawful profession, trade, or business, or the meaning of which is
+uncertain, is void to the extent of such uncertainty.
+
+Section 5. Damages for Breach
+Where a contract has been broken, the party who suffers loss is entitled
+to receive, from the party who has broken the contract, compensation for
+loss or damage caused which naturally arose in the usual course of things
+from such breach, or which the parties knew, when they made the
+contract, to be likely to result from the breach of it.

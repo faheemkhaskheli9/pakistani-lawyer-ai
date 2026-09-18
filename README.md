@@ -118,9 +118,14 @@ cp .env.example .env              # fill in API keys / config
 
 ## 8. Dataset
 
-Only public-domain / openly licensed text is used: sample sections drawn
-from publicly available Pakistani statute text and case-law summaries that
-carry no redistribution restriction. No scraped, copyrighted, or
+The checked-in seed corpus (`data/corpus/`) is **original sample text
+authored for this project** in a generic, clearly-fictional statute style
+("Sample Civil Code", "Sample Criminal Procedure Code", "Sample Evidence
+Act") — not a reproduction of, or derived from, any specific real
+Pakistani statute. This avoids any copyright question over real statute
+text while still exercising the full ingestion/chunking/citation/embedding
+pipeline end-to-end. `data/corpus/sources.json` records, per document, the
+source/license basis for including it. No scraped, copyrighted, or
 client-identifiable legal documents are used. The seed corpus is
 intentionally small (a demo, not a production legal database) — see
 `docs/evaluation.md` for exactly what's included and its licensing note.

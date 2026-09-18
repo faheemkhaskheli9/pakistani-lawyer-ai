@@ -14,9 +14,12 @@
 
 ## Corpus licensing note
 
-The seed corpus (once Phase 1 lands) will list, per document: title, source
-URL, and the specific public-domain / open-license basis for including it.
-No document with an unclear or restrictive license is included.
+The seed corpus under `data/corpus/` (issue #3) is original sample
+statute-style text authored for this project, not a reproduction of any
+real statute — see `README.md` §8 for why. `data/corpus/sources.json`
+lists, per document: title, source URL (null for these self-authored
+documents), and the basis for including it. No document with an unclear or
+restrictive license is included.
 
 ## Result Log
 

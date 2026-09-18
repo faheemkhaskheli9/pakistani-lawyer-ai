@@ -1,0 +1,17 @@
+{
+  "sample_civil_code.txt": {
+    "title": "Sample Civil Code (Illustrative Demo Text)",
+    "source_url": null,
+    "basis": "Original sample text authored for this project; not derived from or a reproduction of any real statute. Dedicated to the public domain (CC0-equivalent) for use as demo/test corpus content, avoiding any copyright question over real statute text."
+  },
+  "sample_criminal_procedure.txt": {
+    "title": "Sample Criminal Procedure Code (Illustrative Demo Text)",
+    "source_url": null,
+    "basis": "Original sample text authored for this project; not derived from or a reproduction of any real statute. Dedicated to the public domain (CC0-equivalent) for use as demo/test corpus content, avoiding any copyright question over real statute text."
+  },
+  "sample_evidence_act.txt": {
+    "title": "Sample Evidence Act (Illustrative Demo Text)",
+    "source_url": null,
+    "basis": "Original sample text authored for this project; not derived from or a reproduction of any real statute. Dedicated to the public domain (CC0-equivalent) for use as demo/test corpus content, avoiding any copyright question over real statute text."
+  }
+}
