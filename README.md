@@ -138,6 +138,13 @@ python -m legal_core.ingest --corpus data/corpus
 uvicorn src.api:app --reload   # once Phase 3 lands
 ```
 
+**From VSCode:** open the repo root as the workspace, then Run and Debug ->
+"legal_core: ingest seed corpus" (`.vscode/launch.json`) runs the same
+command under `debugpy` with `cwd` set to the repo root and `PYTHONPATH`
+pointing at `src/`, so breakpoints in `src/legal_core/*.py` are hit without
+an editable install. A second config, "Python: Debug Tests (pytest)", runs
+the test suite the same way.
+
 ## 10. Evaluation
 
 Document evaluation metrics and how to reproduce them here (see
