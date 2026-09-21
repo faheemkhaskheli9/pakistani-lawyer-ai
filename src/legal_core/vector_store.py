@@ -33,6 +33,11 @@ class DimensionMismatch(ValueError):
     similarity search."""
 
 
+class VectorStoreCorrupt(RuntimeError):
+    """Raised when the persisted vectors and metadata disagree about which
+    chunks the store holds."""
+
+
 @dataclass(frozen=True)
 class VectorMatch:
     id: str
@@ -70,6 +75,15 @@ class VectorStore:
         self._metadata = meta["metadata"]
         with np.load(vec_path) as npz:
             self._vectors = npz["vectors"]
+        # The vectors and metadata files are replaced one after the other, so
+        # a crash between the two can leave them describing different chunk
+        # sets. Row i would then be scored against the wrong document -- a
+        # confidently wrong retrieval -- so refuse to load instead.
+        if len(self._vectors) != len(self._ids) or set(self._ids) != set(self._documents):
+            raise VectorStoreCorrupt(
+                f"Vector store at {self.path} is inconsistent: {len(self._vectors)} vector row(s), "
+                f"{len(self._ids)} id(s), {len(self._documents)} document(s). Delete it and re-run ingestion."
+            )
         if self._vectors is not None and len(self._vectors) > 0:
             self.dimension = self._vectors.shape[1]
 
@@ -127,8 +141,24 @@ class VectorStore:
         self._save()
 
     def query(self, embedding: list[float], top_k: int = 5) -> list[VectorMatch]:
+        """Return up to `top_k` matches, highest cosine similarity first.
+
+        An empty store returns `[]`. A non-positive `top_k` or a query
+        embedding of the wrong dimension is a caller error and raises,
+        rather than returning an empty/garbage result that looks like
+        "nothing relevant found".
+        """
+        if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k <= 0:
+            raise ValueError(f"top_k must be a positive integer, got {top_k!r}")
         if not self._ids:
             return []
+        if len(embedding) != self.dimension:
+            # Same guard as upsert(): the query was embedded by a different
+            # provider than the one the index was built with.
+            raise DimensionMismatch(
+                f"Query embedding has dimension {len(embedding)}, store expects {self.dimension} "
+                "-- was the index built with a different embedding provider?"
+            )
         query_vec = np.array(embedding, dtype="float32")
         query_norm = np.linalg.norm(query_vec)
         if query_norm == 0:
@@ -138,8 +168,10 @@ class VectorStore:
         norms[norms == 0] = 1e-12  # avoid dividing a zero-vector row by zero
         scores = (vectors @ query_vec) / (norms * query_norm)
 
-        top_k = max(0, min(top_k, len(self._ids)))
-        top_indices = np.argsort(-scores)[:top_k]
+        top_k = min(top_k, len(self._ids))
+        # Stable sort: chunks with equal scores keep insertion order, so the
+        # same query against the same index always ranks identically.
+        top_indices = np.argsort(-scores, kind="stable")[:top_k]
         return [
             VectorMatch(
                 id=self._ids[i],

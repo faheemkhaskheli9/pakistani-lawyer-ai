@@ -15,6 +15,19 @@
             "justMyCode": true
         },
         {
+            "name": "legal_core: retrieve top-k",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "legal_core.retrieval",
+            "args": ["admissibility of evidence", "--top-k", "3"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            },
+            "justMyCode": true
+        },
+        {
             "name": "Python: Debug Tests (pytest)",
             "type": "debugpy",
             "request": "launch",

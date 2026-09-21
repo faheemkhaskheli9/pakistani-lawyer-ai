@@ -133,17 +133,29 @@ intentionally small (a demo, not a production legal database) — see
 ## 9. Training / Execution
 
 ```bash
-# Once Phase 1 lands:
+# Phase 1: ingest + embed the seed corpus into data/index
 python -m legal_core.ingest --corpus data/corpus
+
+# Phase 2: top-k retrieval over that index, ranked by cosine similarity
+python -m legal_core.retrieval "admissibility of evidence" --top-k 3
+
 uvicorn src.api:app --reload   # once Phase 3 lands
 ```
+
+`k` is configurable per call (`--top-k` / `Retriever.retrieve(query, top_k=...)`),
+per retriever, or via `$RETRIEVAL_TOP_K` (default 5); a value that is not a
+positive integer is an error rather than a silent fall back. An index that was
+never built, or is empty, returns an empty result instead of raising. Querying
+with a different `--embedding-provider` than the index was built with fails
+with a clear dimension-mismatch error. Retrieval runs CPU-only with the
+default hashing embedder — no network or paid API.
 
 **From VSCode:** open the repo root as the workspace, then Run and Debug ->
 "legal_core: ingest seed corpus" (`.vscode/launch.json`) runs the same
 command under `debugpy` with `cwd` set to the repo root and `PYTHONPATH`
 pointing at `src/`, so breakpoints in `src/legal_core/*.py` are hit without
-an editable install. A second config, "Python: Debug Tests (pytest)", runs
-the test suite the same way.
+an editable install. "legal_core: retrieve top-k" runs a sample query against
+that index, and "Python: Debug Tests (pytest)" runs the test suite the same way.
 
 ## 10. Evaluation
 
