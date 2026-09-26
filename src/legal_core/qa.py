@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from .generation import AnswerGenerator, GeneratedAnswer
 from .retrieval import RetrievedChunk
+from .safeguards import LEGAL_INFORMATION_DISCLAIMER
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class LegalAnswer:
     question: str
     answer: str
     citations: tuple[AnswerCitation, ...]
+    disclaimer: str = LEGAL_INFORMATION_DISCLAIMER
 
 
 def citation_from_chunk(chunk: RetrievedChunk) -> AnswerCitation | None:

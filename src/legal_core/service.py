@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .generation import AnswerGenerator
 from .qa import LegalAnswer, answer_from_chunks
 from .retrieval import Retriever
+from .safeguards import LEGAL_INFORMATION_DISCLAIMER
 
 MIN_SCORE_ENV = "RETRIEVAL_MIN_SCORE"
 DEFAULT_MIN_SCORE = 0.20
@@ -51,6 +52,7 @@ class QAResult:
     status: str
     message: str
     answer: LegalAnswer | None
+    disclaimer: str = LEGAL_INFORMATION_DISCLAIMER
 
     @property
     def found_relevant_source(self) -> bool:

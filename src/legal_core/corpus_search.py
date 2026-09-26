@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from .retrieval import Retriever, RetrievedChunk
+from .safeguards import LEGAL_INFORMATION_DISCLAIMER
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class CorpusSearchResult:
 class CorpusSearchResponse:
     query: str
     results: tuple[CorpusSearchResult, ...]
+    disclaimer: str = LEGAL_INFORMATION_DISCLAIMER
 
 
 def _result_from_chunk(chunk: RetrievedChunk) -> CorpusSearchResult | None:
