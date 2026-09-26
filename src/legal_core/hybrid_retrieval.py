@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .embeddings import get_embedder
+from .filters import RetrievalFilters, matches_filters
 from .retrieval import DEFAULT_INDEX_DIR, RetrievedChunk, Retriever, resolve_top_k
 from .vector_store import VectorMatch, VectorStore
 
@@ -107,14 +108,24 @@ class HybridRetriever:
         self.top_k = resolve_top_k(top_k if top_k is not None else vector_retriever.top_k)
         self.lexical_index = BM25Index(self.vector_store.entries())
 
-    def retrieve(self, query: str, top_k: int | None = None) -> list[RetrievedChunk]:
+    def retrieve(
+        self,
+        query: str,
+        top_k: int | None = None,
+        *,
+        filters: RetrievalFilters | None = None,
+    ) -> list[RetrievedChunk]:
         if not query or not query.strip():
             return []
         k = resolve_top_k(top_k if top_k is not None else self.top_k, env={})
         if len(self.vector_store) == 0:
             return []
 
-        candidate_k = min(len(self.vector_store), max(k * 3, k))
+        candidate_k = (
+            len(self.vector_store)
+            if filters is not None and filters.active
+            else min(len(self.vector_store), max(k * 3, k))
+        )
         vector_results = self.vector_retriever.retrieve(query, top_k=candidate_k)
         lexical_results = self.lexical_index.search(query, top_k=candidate_k)
 
@@ -145,7 +156,16 @@ class HybridRetriever:
                 section = lexical.metadata.get("section")
                 chunk_index = lexical.metadata.get("chunk_index")
 
-            fused.append((score, stable_index, chunk_id, text, source, section, chunk_index))
+            metadata = (
+                dict(vector.metadata)
+                if vector is not None
+                else dict(lexical.metadata)
+            )
+            if not matches_filters(metadata, filters):
+                continue
+            fused.append(
+                (score, stable_index, chunk_id, text, source, section, chunk_index, metadata)
+            )
 
         fused.sort(key=lambda row: (-row[0], row[1]))
         return [
@@ -157,13 +177,9 @@ class HybridRetriever:
                 source=source,
                 section=section,
                 chunk_index=chunk_index,
-                metadata=(
-                    dict(vector.metadata)
-                    if vector is not None
-                    else dict(lexical.metadata)
-                ),
+                metadata=metadata,
             )
-            for rank, (score, _, chunk_id, text, source, section, chunk_index)
+            for rank, (score, _, chunk_id, text, source, section, chunk_index, metadata)
             in enumerate(fused[:k], start=1)
         ]
 

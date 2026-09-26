@@ -8,6 +8,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from .corpus_search import CorpusSearchService
+from .filters import RetrievalFilters
 from .hybrid_retrieval import build_hybrid_retriever
 from .security import FixedWindowRateLimiter, api_key_matches, resolve_api_key, resolve_rate_limit
 from .service import QuestionAnsweringService
@@ -74,9 +75,23 @@ def create_app(
     def search(
         q: str = Query(min_length=1, max_length=5000),
         top_k: int | None = Query(default=None, ge=1, le=100),
+        jurisdiction: str | None = Query(default=None),
+        court: str | None = Query(default=None),
+        document_type: str | None = Query(default=None),
+        case_citation: str | None = Query(default=None),
+        date_from: str | None = Query(default=None),
+        date_to: str | None = Query(default=None),
     ):
         try:
-            result = search_service.search(q, top_k=top_k)
+            filters = RetrievalFilters(
+                jurisdiction=jurisdiction,
+                court=court,
+                document_type=document_type,
+                case_citation=case_citation,
+                date_from=date_from,
+                date_to=date_to,
+            )
+            result = search_service.search(q, top_k=top_k, filters=filters)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return asdict(result)

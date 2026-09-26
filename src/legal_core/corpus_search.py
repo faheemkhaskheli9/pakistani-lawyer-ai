@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
+from .filters import RetrievalFilters
 from .retrieval import Retriever, RetrievedChunk
 from .safeguards import LEGAL_INFORMATION_DISCLAIMER
 
@@ -59,11 +60,27 @@ class CorpusSearchService:
     def __init__(self, retriever: Retriever):
         self.retriever = retriever
 
-    def search(self, query: str, *, top_k: int | None = None) -> CorpusSearchResponse:
+    def search(
+        self,
+        query: str,
+        *,
+        top_k: int | None = None,
+        filters: RetrievalFilters | None = None,
+    ) -> CorpusSearchResponse:
         if not query or not query.strip():
             raise ValueError("query must not be blank")
 
-        chunks = self.retriever.retrieve(query.strip(), top_k=top_k)
+        if filters is None:
+            chunks = self.retriever.retrieve(query.strip(), top_k=top_k)
+        else:
+            try:
+                chunks = self.retriever.retrieve(
+                    query.strip(), top_k=top_k, filters=filters
+                )
+            except TypeError as exc:
+                raise ValueError(
+                    "configured retriever does not support metadata filters"
+                ) from exc
         results = tuple(
             result
             for chunk in chunks
