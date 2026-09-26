@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Who is competent to enter into a contract?",
+    "expected_source": "sample_civil_code.txt"
+  },
+  {
+    "query": "What makes consent not free because of coercion or fraud?",
+    "expected_source": "sample_civil_code.txt"
+  },
+  {
+    "query": "How is a first information report recorded for a cognizable offence?",
+    "expected_source": "sample_criminal_procedure.txt"
+  },
+  {
+    "query": "When is an accused person entitled to bail in a non-cognizable case?",
+    "expected_source": "sample_criminal_procedure.txt"
+  },
+  {
+    "query": "Who carries the burden of proving an asserted fact?",
+    "expected_source": "sample_evidence_act.txt"
+  },
+  {
+    "query": "When is a dying declaration relevant?",
+    "expected_source": "sample_evidence_act.txt"
+  }
+]
