@@ -116,6 +116,23 @@ class VectorStore:
     def __contains__(self, id_: str) -> bool:
         return id_ in self._documents
 
+    def entries(self) -> list[VectorMatch]:
+        """Return a stable read-only snapshot of indexed documents and metadata.
+
+        Scores are zero because this method exposes corpus entries rather than
+        query results. Callers such as lexical retrieval can build secondary
+        indexes without reaching into VectorStore private attributes.
+        """
+        return [
+            VectorMatch(
+                id=id_,
+                score=0.0,
+                document=self._documents[id_],
+                metadata=dict(self._metadata[id_]),
+            )
+            for id_ in self._ids
+        ]
+
     def upsert(self, id_: str, embedding: list[float], document: str, metadata: dict[str, Any] | None = None) -> None:
         if self.dimension is None:
             self.dimension = len(embedding)

@@ -8,7 +8,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from .corpus_search import CorpusSearchService
-from .retrieval import build_retriever
+from .hybrid_retrieval import build_hybrid_retriever
 from .security import FixedWindowRateLimiter, api_key_matches, resolve_api_key, resolve_rate_limit
 from .service import QuestionAnsweringService
 
@@ -18,7 +18,7 @@ class AskRequest(BaseModel):
 
 
 def _default_services():
-    retriever = build_retriever()
+    retriever = build_hybrid_retriever()
     return QuestionAnsweringService(retriever), CorpusSearchService(retriever)
 
 
