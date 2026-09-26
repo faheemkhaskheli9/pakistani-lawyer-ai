@@ -6,7 +6,7 @@ generation providers are unavailable.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 from .retrieval import Retriever, RetrievedChunk
@@ -23,6 +23,7 @@ class CorpusSearchResult:
     citation: str
     excerpt: str
     source_path: str
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ def _result_from_chunk(chunk: RetrievedChunk) -> CorpusSearchResult | None:
         citation=chunk.citation,
         excerpt=excerpt,
         source_path=f"data/corpus/{safe_name}",
+        metadata=dict(chunk.metadata),
     )
 
 

@@ -29,6 +29,11 @@ def embed_new_chunks(store: ChunkStore, embedder: EmbeddingProvider, vector_stor
             record.id,
             embedding,
             record.text,
-            metadata={"source": record.source, "section": record.section, "chunk_index": record.chunk_index},
+            metadata={
+                **record.metadata,
+                "source": record.source,
+                "section": record.section,
+                "chunk_index": record.chunk_index,
+            },
         )
     return len(pending)

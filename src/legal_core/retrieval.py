@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .embeddings import EmbeddingProvider, get_embedder
@@ -40,6 +40,7 @@ class RetrievedChunk:
     source: str | None   # source document the chunk was ingested from
     section: str | None  # section/paragraph citation within that source
     chunk_index: int | None
+    metadata: dict = field(default_factory=dict)
 
     @property
     def citation(self) -> str:
@@ -98,6 +99,7 @@ class Retriever:
                 source=match.metadata.get("source"),
                 section=match.metadata.get("section"),
                 chunk_index=match.metadata.get("chunk_index"),
+                metadata=dict(match.metadata),
             )
             for rank, match in enumerate(matches, start=1)
         ]

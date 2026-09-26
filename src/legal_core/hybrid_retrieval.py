@@ -157,6 +157,11 @@ class HybridRetriever:
                 source=source,
                 section=section,
                 chunk_index=chunk_index,
+                metadata=(
+                    dict(vector.metadata)
+                    if vector is not None
+                    else dict(lexical.metadata)
+                ),
             )
             for rank, (score, _, chunk_id, text, source, section, chunk_index)
             in enumerate(fused[:k], start=1)

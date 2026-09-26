@@ -32,6 +32,7 @@ from .chunking import chunk_text
 from .citation import extract_section_id
 from .embedding_pipeline import embed_new_chunks
 from .embeddings import get_embedder
+from .metadata import load_legal_metadata
 from .parsing import SUPPORTED_EXTENSIONS, DocumentParseError, read_source_text
 from .vector_store import VectorStore
 
@@ -70,6 +71,7 @@ class IngestionPipeline:
             logger.info("No content chunks extracted from %s", path)
             return 0
 
+        legal_metadata = load_legal_metadata(path, text=text).to_dict()
         records = [
             ChunkRecord(
                 id=_chunk_id(str(path), i, chunk),
@@ -77,7 +79,7 @@ class IngestionPipeline:
                 section=extract_section_id(chunk, i),
                 chunk_index=i,
                 text=chunk,
-                metadata={"title": path.stem},
+                metadata=dict(legal_metadata),
             )
             for i, chunk in enumerate(chunks)
         ]
