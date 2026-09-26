@@ -34,6 +34,7 @@ from .embedding_pipeline import embed_new_chunks
 from .embeddings import get_embedder
 from .metadata import load_legal_metadata
 from .parsing import SUPPORTED_EXTENSIONS, DocumentParseError, read_source_text
+from .statute_structure import StatuteStructureTracker
 from .vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -72,17 +73,23 @@ class IngestionPipeline:
             return 0
 
         legal_metadata = load_legal_metadata(path, text=text).to_dict()
-        records = [
-            ChunkRecord(
-                id=_chunk_id(str(path), i, chunk),
-                source=str(path),
-                section=extract_section_id(chunk, i),
-                chunk_index=i,
-                text=chunk,
-                metadata=dict(legal_metadata),
+        tracker = StatuteStructureTracker()
+        records = []
+        for i, chunk in enumerate(chunks):
+            structure = tracker.update(chunk).to_dict()
+            records.append(
+                ChunkRecord(
+                    id=_chunk_id(str(path), i, chunk),
+                    source=str(path),
+                    section=extract_section_id(chunk, i),
+                    chunk_index=i,
+                    text=chunk,
+                    metadata={
+                        **legal_metadata,
+                        "statute_structure": structure,
+                    },
+                )
             )
-            for i, chunk in enumerate(chunks)
-        ]
         self.store.upsert(records)
         logger.info("Ingested %s: %d chunks", path, len(records))
         return len(records)
