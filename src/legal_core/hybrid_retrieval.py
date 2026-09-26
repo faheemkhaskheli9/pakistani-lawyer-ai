@@ -13,6 +13,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
+from .authority import assess_authority, combine_relevance_and_authority
 from .embeddings import get_embedder
 from .filters import RetrievalFilters, matches_filters
 from .retrieval import DEFAULT_INDEX_DIR, RetrievedChunk, Retriever, resolve_top_k
@@ -20,6 +21,7 @@ from .vector_store import VectorMatch, VectorStore
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 DEFAULT_VECTOR_WEIGHT = 0.65
+DEFAULT_AUTHORITY_WEIGHT = 0.10
 
 
 def tokenize(text: str) -> list[str]:
@@ -98,6 +100,7 @@ class HybridRetriever:
         *,
         vector_weight: float = DEFAULT_VECTOR_WEIGHT,
         top_k: int | None = None,
+        authority_weight: float = DEFAULT_AUTHORITY_WEIGHT,
     ):
         if not 0.0 <= vector_weight <= 1.0:
             raise ValueError("vector_weight must be between 0 and 1")
@@ -106,6 +109,9 @@ class HybridRetriever:
         self.vector_weight = float(vector_weight)
         self.lexical_weight = 1.0 - self.vector_weight
         self.top_k = resolve_top_k(top_k if top_k is not None else vector_retriever.top_k)
+        if not 0.0 <= authority_weight <= 1.0:
+            raise ValueError("authority_weight must be between 0 and 1")
+        self.authority_weight = float(authority_weight)
         self.lexical_index = BM25Index(self.vector_store.entries())
 
     def retrieve(
@@ -163,8 +169,29 @@ class HybridRetriever:
             )
             if not matches_filters(metadata, filters):
                 continue
+
+            authority = assess_authority(metadata)
+            metadata = {
+                **metadata,
+                "authority_score": authority.score,
+                "authority_reason": authority.reason,
+            }
+            reranked_score = combine_relevance_and_authority(
+                score,
+                authority,
+                authority_weight=self.authority_weight,
+            )
             fused.append(
-                (score, stable_index, chunk_id, text, source, section, chunk_index, metadata)
+                (
+                    reranked_score,
+                    stable_index,
+                    chunk_id,
+                    text,
+                    source,
+                    section,
+                    chunk_index,
+                    metadata,
+                )
             )
 
         fused.sort(key=lambda row: (-row[0], row[1]))
@@ -190,7 +217,13 @@ def build_hybrid_retriever(
     top_k: int | None = None,
     embedding_provider: str | None = None,
     vector_weight: float = DEFAULT_VECTOR_WEIGHT,
+    authority_weight: float = DEFAULT_AUTHORITY_WEIGHT,
 ) -> HybridRetriever:
     store = VectorStore(Path(index_dir) / "vectors")
     vector = Retriever(get_embedder(embedding_provider), store, top_k=top_k)
-    return HybridRetriever(vector, vector_weight=vector_weight, top_k=top_k)
+    return HybridRetriever(
+        vector,
+        vector_weight=vector_weight,
+        top_k=top_k,
+        authority_weight=authority_weight,
+    )
