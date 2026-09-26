@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .citation_parser import contains_supported_citation
+
 INTENTS = {
     "statute_lookup",
     "case_search",
@@ -22,13 +24,6 @@ _JURISDICTION_PATTERNS = (
     ("Islamabad Capital Territory", re.compile(r"\b(?:islamabad|ict)\b", re.I)),
     ("Federal", re.compile(r"\b(?:federal|pakistan-wide|national law|constitution of pakistan)\b", re.I)),
 )
-
-_CITATION_RE = re.compile(
-    r"\b(?:PLD\s+\d{4}\s+(?:SC|Lahore|Karachi|Peshawar|Quetta|Islamabad|FSC)\s+\d+"
-    r"|\d{4}\s+(?:SCMR|CLC|MLD|YLR)\s+\d+)\b",
-    re.I,
-)
-
 
 @dataclass(frozen=True)
 class QueryAnalysis:
@@ -52,7 +47,7 @@ def classify_intent(query: str) -> str:
     text = " ".join(query.strip().split())
     lower = text.lower()
 
-    if _CITATION_RE.search(text) or any(
+    if contains_supported_citation(text) or any(
         phrase in lower for phrase in ("citation ", "reported as", "find pl", "scmr", "clc ", "mld ", "ylr ")
     ):
         return "citation_lookup"
