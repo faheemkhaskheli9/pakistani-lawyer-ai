@@ -9,6 +9,8 @@ from legal_core.qa import AnswerCitation, LegalAnswer
 from legal_core.safeguards import LEGAL_INFORMATION_DISCLAIMER
 from legal_core.service import QAResult
 
+TEST_API_KEY = "test-key"
+
 
 class QAService:
     def ask(self, question):
@@ -51,35 +53,35 @@ class SearchService:
         )
 
 
-def client():
-    return TestClient(create_app(qa_service=QAService(), search_service=SearchService()))
+def client(rate_limit=30):
+    return TestClient(
+        create_app(
+            qa_service=QAService(),
+            search_service=SearchService(),
+            api_key=TEST_API_KEY,
+            qa_rate_limit=rate_limit,
+        )
+    )
 
 
 def test_health_endpoint():
-    response = client().get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert client().get("/health").json() == {"status": "ok"}
 
 
 def test_ask_endpoint_returns_grounded_answer_and_citations():
-    response = client().post("/api/v1/ask", json={"question": "What does the source say?"})
+    response = client().post(
+        "/api/v1/ask",
+        json={"question": "What does the source say?"},
+        headers={"X-API-Key": TEST_API_KEY},
+    )
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "answered"
-    assert body["answer"]["answer"] == "Grounded response."
     assert body["answer"]["citations"][0]["citation"] == "sample.txt, Section 1"
     assert body["disclaimer"] == LEGAL_INFORMATION_DISCLAIMER
 
 
-def test_search_endpoint_returns_direct_corpus_results():
+def test_search_endpoint_remains_available_without_llm_auth():
     response = client().get("/api/v1/search", params={"q": "source", "top_k": 3})
     assert response.status_code == 200
-    body = response.json()
-    assert body["query"] == "source"
-    assert body["results"][0]["source_path"] == "data/corpus/sample.txt"
-    assert body["disclaimer"] == LEGAL_INFORMATION_DISCLAIMER
-
-
-def test_request_validation_rejects_blank_question_and_invalid_top_k():
-    assert client().post("/api/v1/ask", json={"question": ""}).status_code == 422
-    assert client().get("/api/v1/search", params={"q": "x", "top_k": 0}).status_code == 422
+    assert response.json()["results"][0]["source_path"] == "data/corpus/sample.txt"

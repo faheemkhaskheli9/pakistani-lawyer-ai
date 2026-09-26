@@ -4,11 +4,12 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from .corpus_search import CorpusSearchService
 from .retrieval import build_retriever
+from .security import FixedWindowRateLimiter, api_key_matches, resolve_api_key, resolve_rate_limit
 from .service import QuestionAnsweringService
 
 
@@ -25,12 +26,16 @@ def create_app(
     *,
     qa_service: Any | None = None,
     search_service: Any | None = None,
+    api_key: str | None = None,
+    qa_rate_limit: int | None = None,
 ) -> FastAPI:
-    """Create the API with injectable services for deterministic tests."""
     if qa_service is None or search_service is None:
         default_qa, default_search = _default_services()
         qa_service = qa_service or default_qa
         search_service = search_service or default_search
+
+    expected_api_key = resolve_api_key(api_key)
+    limiter = FixedWindowRateLimiter(resolve_rate_limit(qa_rate_limit))
 
     app = FastAPI(
         title="Pakistani Lawyer AI",
@@ -43,7 +48,22 @@ def create_app(
         return {"status": "ok"}
 
     @app.post("/api/v1/ask")
-    def ask(payload: AskRequest):
+    def ask(
+        payload: AskRequest,
+        request: Request,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        if not api_key_matches(x_api_key, expected_api_key):
+            raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+        client_ip = request.client.host if request.client else "unknown"
+        if not limiter.allow(client_ip):
+            raise HTTPException(
+                status_code=429,
+                detail="QA rate limit exceeded",
+                headers={"Retry-After": "60"},
+            )
+
         try:
             result = qa_service.ask(payload.question)
         except ValueError as exc:
