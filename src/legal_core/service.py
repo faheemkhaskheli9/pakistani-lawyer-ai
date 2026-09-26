@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .citation_verification import CitationVerificationReport, verify_citations
 from .generation import AnswerGenerator
 from .qa import LegalAnswer, answer_from_chunks
+from .query_analysis import QueryAnalysis, analyze_query
 from .retrieval import Retriever
 from .safeguards import LEGAL_INFORMATION_DISCLAIMER
 
@@ -53,6 +54,7 @@ class QAResult:
     status: str
     message: str
     answer: LegalAnswer | None
+    query_analysis: QueryAnalysis | None = None
     citation_verification: CitationVerificationReport | None = None
     disclaimer: str = LEGAL_INFORMATION_DISCLAIMER
 
@@ -79,7 +81,8 @@ class QuestionAnsweringService:
         if not question or not question.strip():
             raise ValueError("question must not be blank")
 
-        retrieved = self.retriever.retrieve(question.strip())
+        analysis = analyze_query(question)
+        retrieved = self.retriever.retrieve(analysis.normalized_query)
         relevant = [chunk for chunk in retrieved if chunk.score >= self.min_score]
 
         if not relevant:
@@ -87,6 +90,7 @@ class QuestionAnsweringService:
                 status="no_relevant_source",
                 message=NO_RELEVANT_SOURCE_MESSAGE,
                 answer=None,
+                query_analysis=analysis,
             )
 
         answer = answer_from_chunks(
@@ -103,11 +107,13 @@ class QuestionAnsweringService:
                     "citations could not be verified against retrieved sources."
                 ),
                 answer=None,
+                query_analysis=analysis,
                 citation_verification=verification,
             )
         return QAResult(
             status="answered",
             message="Answer generated from retrieved legal sources.",
             answer=answer,
+            query_analysis=analysis,
             citation_verification=verification,
         )
