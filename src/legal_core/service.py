@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from .citation_verification import CitationVerificationReport, verify_citations
 from .generation import AnswerGenerator
 from .qa import LegalAnswer, answer_from_chunks
 from .retrieval import Retriever
@@ -52,6 +53,7 @@ class QAResult:
     status: str
     message: str
     answer: LegalAnswer | None
+    citation_verification: CitationVerificationReport | None = None
     disclaimer: str = LEGAL_INFORMATION_DISCLAIMER
 
     @property
@@ -92,8 +94,20 @@ class QuestionAnsweringService:
             relevant,
             generator=self.generator,
         )
+        verification = verify_citations(answer, relevant)
+        if not verification.verified:
+            return QAResult(
+                status="citation_verification_failed",
+                message=(
+                    "The generated answer was withheld because one or more "
+                    "citations could not be verified against retrieved sources."
+                ),
+                answer=None,
+                citation_verification=verification,
+            )
         return QAResult(
             status="answered",
             message="Answer generated from retrieved legal sources.",
             answer=answer,
+            citation_verification=verification,
         )
