@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      PAKISTANI_LAWYER_API_KEY: "${PAKISTANI_LAWYER_API_KEY:-local-development-key}"
+      QA_RATE_LIMIT_PER_MINUTE: "${QA_RATE_LIMIT_PER_MINUTE:-30}"
+      RETRIEVAL_TOP_K: "${RETRIEVAL_TOP_K:-5}"
+      RETRIEVAL_MIN_SCORE: "${RETRIEVAL_MIN_SCORE:-0.20}"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
