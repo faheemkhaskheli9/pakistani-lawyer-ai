@@ -56,6 +56,14 @@ class ChunkStore:
             self._records[record.id] = record
         self._save()
 
+    def delete(self, ids) -> int:
+        doomed = [i for i in ids if i in self._records]
+        for i in doomed:
+            del self._records[i]
+        if doomed:
+            self._save()
+        return len(doomed)
+
     def __len__(self) -> int:
         return len(self._records)
 

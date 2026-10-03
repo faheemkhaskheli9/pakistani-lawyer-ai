@@ -1,26 +1,127 @@
 [
   {
     "query": "Who is competent to enter into a contract?",
-    "expected_source": "sample_civil_code.txt"
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 2"
   },
   {
     "query": "What makes consent not free because of coercion or fraud?",
-    "expected_source": "sample_civil_code.txt"
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 3"
   },
   {
     "query": "How is a first information report recorded for a cognizable offence?",
-    "expected_source": "sample_criminal_procedure.txt"
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Section 2"
   },
   {
     "query": "When is an accused person entitled to bail in a non-cognizable case?",
-    "expected_source": "sample_criminal_procedure.txt"
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Section 3"
   },
   {
     "query": "Who carries the burden of proving an asserted fact?",
-    "expected_source": "sample_evidence_act.txt"
+    "expected_source": "sample_evidence_act.txt",
+    "expected_section": "Section 4"
   },
   {
     "query": "When is a dying declaration relevant?",
-    "expected_source": "sample_evidence_act.txt"
+    "expected_source": "sample_evidence_act.txt",
+    "expected_section": "Section 3"
+  },
+  {
+    "query": "Does a person include a company under the code?",
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 1"
+  },
+  {
+    "query": "What is the definition of a contract?",
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 1"
+  },
+  {
+    "query": "Can a person of unsound mind make a binding agreement?",
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 2"
+  },
+  {
+    "query": "What happens to an agreement made without free consent?",
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 3"
+  },
+  {
+    "query": "Is an agreement in restraint of trade valid?",
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 4"
+  },
+  {
+    "query": "What is the effect of an agreement without lawful consideration?",
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 4"
+  },
+  {
+    "query": "What compensation can I get if the other party breaks the contract?",
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 5"
+  },
+  {
+    "query": "Are damages available for losses the parties foresaw at the time of contracting?",
+    "expected_source": "sample_civil_code.txt",
+    "expected_section": "Section 5"
+  },
+  {
+    "query": "What is the difference between cognizable and non-cognizable offences?",
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Section 1"
+  },
+  {
+    "query": "Can police arrest without a warrant?",
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Section 1"
+  },
+  {
+    "query": "Is the informant entitled to a free copy of the FIR?",
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Section 2"
+  },
+  {
+    "query": "Can the police investigate a cognizable case without a magistrate's order?",
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Section 4"
+  },
+  {
+    "query": "Which court conditions can be imposed when granting bail?",
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Section 3"
+  },
+  {
+    "query": "Is an accused entitled to time to prepare a defence?",
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Article 5"
+  },
+  {
+    "query": "Does an accused have a right to a fair and impartial trial?",
+    "expected_source": "sample_criminal_procedure.txt",
+    "expected_section": "Article 5"
+  },
+  {
+    "query": "What counts as an admission by a party?",
+    "expected_source": "sample_evidence_act.txt",
+    "expected_section": "Section 2"
+  },
+  {
+    "query": "Are facts forming part of the same transaction relevant?",
+    "expected_source": "sample_evidence_act.txt",
+    "expected_section": "Section 1"
+  },
+  {
+    "query": "Who must prove a fact when someone denies it?",
+    "expected_source": "sample_evidence_act.txt",
+    "expected_section": "Section 4"
+  },
+  {
+    "query": "Is a statement about the cause of death admissible if the speaker did not expect to die?",
+    "expected_source": "sample_evidence_act.txt",
+    "expected_section": "Section 3"
   }
 ]

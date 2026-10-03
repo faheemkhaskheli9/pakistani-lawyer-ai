@@ -66,6 +66,11 @@ def classify_intent(query: str) -> str:
     ):
         return "document_question"
 
+    # An explicit section/article reference is a statute lookup even when the
+    # question is phrased "what does section 5 provide?".
+    if re.search(r"\b(?:section|article)\s+\d", lower):
+        return "statute_lookup"
+
     if any(
         phrase in lower
         for phrase in (

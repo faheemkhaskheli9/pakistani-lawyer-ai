@@ -1,0 +1,12 @@
+[
+  {
+    "name": "example_act",
+    "title": "Example Act (replace with a real, redistributable source)",
+    "url": "https://example.gov.pk/acts/example-act.html",
+    "format": "html",
+    "license": "government-open-data",
+    "license_evidence": "https://example.gov.pk/terms stating the reuse licence",
+    "jurisdiction": "Federal",
+    "document_type": "statute"
+  }
+]

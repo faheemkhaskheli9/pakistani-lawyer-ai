@@ -51,3 +51,20 @@ def test_overlap_near_chunk_size_does_not_infinite_loop():
     text = "a " * 1000
     chunks = chunk_text(text, chunk_size=50, chunk_overlap=49)
     assert len(chunks) > 0  # completes at all = no infinite loop
+
+
+def test_chunk_by_section_splits_at_headings():
+    from legal_core.chunking import chunk_by_section
+
+    text = "Preamble text.\n\nSection 1. A\nfirst body\n\nSection 2. B\nsecond body\n\nArticle 5. C\nthird"
+    chunks = chunk_by_section(text, chunk_size=800)
+    assert [c.split("\n")[0] for c in chunks] == [
+        "Preamble text.", "Section 1. A", "Section 2. B", "Article 5. C",
+    ]
+
+
+def test_chunk_by_section_falls_back_without_headings():
+    from legal_core.chunking import chunk_by_section, chunk_text
+
+    text = "word " * 200
+    assert chunk_by_section(text, 100, 10) == chunk_text(text, 100, 10)

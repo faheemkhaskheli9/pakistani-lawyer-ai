@@ -1,6 +1,7 @@
 """Citation integrity checks for grounded legal answers."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from .qa import AnswerCitation, LegalAnswer
@@ -30,6 +31,23 @@ def _matches_chunk(citation: AnswerCitation, chunk: RetrievedChunk) -> tuple[boo
     if citation.citation != chunk.citation:
         return False, "rendered citation does not match retrieved chunk"
     return True, "citation matches retrieved grounding chunk"
+
+
+_INLINE_MARKER = re.compile(r"\[SOURCE\s+(\d+):\s*([^\]]+)\]")
+
+
+def _verify_inline_markers(answer_text: str, chunks: list[RetrievedChunk]) -> list[CitationCheck]:
+    """Every inline `[SOURCE n: label]` must name a supplied chunk exactly."""
+    by_rank = {chunk.rank: chunk for chunk in chunks}
+    checks = []
+    for match in _INLINE_MARKER.finditer(answer_text):
+        rank, label = int(match.group(1)), match.group(2).strip()
+        chunk = by_rank.get(rank)
+        if chunk is None:
+            checks.append(CitationCheck(f"inline:{rank}", False, "inline marker references an unknown source"))
+        elif label != chunk.citation:
+            checks.append(CitationCheck(chunk.chunk_id, False, "inline marker label does not match its source"))
+    return checks
 
 
 def verify_citations(
@@ -66,6 +84,8 @@ def verify_citations(
 
         valid, reason = _matches_chunk(citation, chunk)
         checks.append(CitationCheck(citation.chunk_id, valid, reason))
+
+    checks.extend(_verify_inline_markers(answer.answer, chunks))
 
     if not answer.citations:
         checks.append(

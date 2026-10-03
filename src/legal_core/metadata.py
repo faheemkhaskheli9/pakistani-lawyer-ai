@@ -98,6 +98,10 @@ def load_legal_metadata(path: str | Path, *, text: str = "") -> LegalMetadata:
         "source_url": source_entry.get("source_url"),
         "document_type": infer_document_type(path, text),
     }
+    # Acquisition adapters record these alongside provenance in sources.json.
+    for key in ("document_type", "jurisdiction", "court"):
+        if source_entry.get(key):
+            merged[key] = source_entry[key]
     merged.update({key: value for key, value in legal_entry.items() if value is not None})
     merged["decision_date"] = _validate_iso_date(
         merged.get("decision_date"), "decision_date", path

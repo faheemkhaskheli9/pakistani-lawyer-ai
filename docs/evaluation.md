@@ -7,6 +7,9 @@
   retrieved chunks that come from the expected source.
 - **Retrieval hit rate@k** — the fraction of labeled queries where the expected
   source appears at least once in the first k results.
+- **MRR** — mean reciprocal rank of the first chunk from the expected source.
+- **Section recall@k** — fraction of queries (those labeled with `expected_section`)
+  whose expected section is in the first k results.
 - **Citation accuracy (manual spot check)** — inspect the citation samples
   emitted by the evaluation harness and verify that each generated/extractive
   answer is actually supported by the displayed source chunks.
@@ -29,6 +32,14 @@ To append the measured retrieval metrics to the Result Log:
 python -m legal_core.evaluation --top-k 3 --write-docs
 ```
 
+Out-of-corpus queries live in `data/evaluation/out_of_corpus_queries.json`. Use
+`--retriever vector|hybrid` (default hybrid) and `--embedding-provider` to compare
+configurations. On this set the top-hit scores overlap slightly (lowest in-corpus 0.25, highest
+out-of-corpus 0.26 with the hashing embedder). The default floor of 0.27 refuses all 10
+out-of-corpus queries at the cost of also refusing 1 of the 25 in-corpus queries - a
+deliberate bias toward refusal in a legal setting. The gate is tight; re-tune it with
+`--min-score` for other embedders or corpora.
+
 The command also prints a small citation spot-check sample for manual review.
 
 ## Corpus licensing note
@@ -41,4 +52,8 @@ authored for this project, not a reproduction of any real statute.
 
 | Date | Phase | Metric | Value | Notes |
 |------|-------|--------|-------|-------|
-| _TBD_ | | | | |
+| 2026-10-03 | Phase 5 | Retrieval precision@3 | 0.787 | 25 labeled queries |
+| 2026-10-03 | Phase 5 | Retrieval hit rate@3 | 1.000 | expected source present in top-k |
+| 2026-10-03 | Phase 5 | MRR | 1.000 | source-level reciprocal rank |
+| 2026-10-03 | Phase 5 | Section recall@3 | 0.920 | expected section present in top-k |
+| 2026-10-03 | Phase 5 | No-source precision | 1.000 | 10 out-of-corpus queries refused |
