@@ -48,7 +48,7 @@ def test_bm25_finds_exact_citation_terms(tmp_path):
     store, _ = make_store(tmp_path)
     matches = BM25Index(store.entries()).search("Article 199 PLD 2024", top_k=3)
     assert matches[0].id == "citation"
-    assert matches[0].score == 1.0
+    assert 0.0 < matches[0].score <= 1.0  # absolute (not top-hit-relative) scale
 
 
 def test_hybrid_can_retrieve_lexical_match_when_embedding_query_has_no_signal(tmp_path):

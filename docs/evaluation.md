@@ -41,4 +41,8 @@ authored for this project, not a reproduction of any real statute.
 
 | Date | Phase | Metric | Value | Notes |
 |------|-------|--------|-------|-------|
-| _TBD_ | | | | |
+| 2026-10-03 | Phase 5 | Retrieval precision@3 | 0.787 | 25 labeled queries |
+| 2026-10-03 | Phase 5 | Retrieval hit rate@3 | 1.000 | expected source present in top-k |
+| 2026-10-03 | Phase 5 | MRR | 1.000 | source-level reciprocal rank |
+| 2026-10-03 | Phase 5 | Section recall@3 | 0.920 | expected section present in top-k |
+| 2026-10-03 | Phase 5 | No-source precision | 1.000 | 10 out-of-corpus queries refused |

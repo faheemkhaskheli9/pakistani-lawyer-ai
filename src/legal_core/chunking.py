@@ -6,6 +6,7 @@ never stall/move `start` backward (infinite-loop risk near `chunk_size`).
 """
 from __future__ import annotations
 
+import re
 from typing import List
 
 
@@ -42,4 +43,26 @@ def chunk_text(text: str, chunk_size: int = 800, chunk_overlap: int = 100) -> Li
         # Guard against the whitespace-snapped `end` landing so close to
         # `start` that overlap would produce zero forward progress.
         start = next_start if next_start > start else end
+    return chunks
+
+
+_HEADING_RE = re.compile(r"^(?:Section|Article)\s+\d+[A-Z]?\s*[.:\-]", re.I | re.M)
+
+
+def chunk_by_section(text: str, chunk_size: int = 800, chunk_overlap: int = 100) -> List[str]:
+    """Split on statute headings so each chunk begins at a section boundary.
+
+    Any preamble before the first heading becomes its own chunk, and a section
+    longer than `chunk_size` is sub-chunked with `chunk_text`. Text without
+    headings falls back to plain fixed-size chunking.
+    """
+    text = text.strip()
+    starts = [m.start() for m in _HEADING_RE.finditer(text)]
+    if not starts:
+        return chunk_text(text, chunk_size, chunk_overlap)
+
+    bounds = ([0] if starts[0] > 0 else []) + starts + [len(text)]
+    chunks: List[str] = []
+    for begin, end in zip(bounds, bounds[1:]):
+        chunks.extend(chunk_text(text[begin:end], chunk_size, chunk_overlap))
     return chunks

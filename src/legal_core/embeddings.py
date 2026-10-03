@@ -16,7 +16,29 @@ from __future__ import annotations
 import hashlib
 import math
 import os
+import re
 from abc import ABC, abstractmethod
+
+
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
+_STOPWORDS = frozenset(
+    "a an and are as at be by for from has have in is it its of on or that the this to was were "
+    "what when where which who whom whose why how with shall may any person".split()
+)
+
+
+def tokenize(text: str) -> list[str]:
+    """Lowercase word tokens, minus stopwords, with light plural/suffix stemming."""
+    tokens = []
+    for tok in _TOKEN_RE.findall(text.lower()):
+        if tok in _STOPWORDS:
+            continue
+        for suffix in ("ing", "ed", "es", "s"):
+            if len(tok) > len(suffix) + 3 and tok.endswith(suffix):
+                tok = tok[: -len(suffix)]
+                break
+        tokens.append(tok)
+    return tokens
 
 
 class EmbeddingProvider(ABC):
@@ -49,7 +71,7 @@ class HashingEmbedder(EmbeddingProvider):
 
     def _embed_one(self, text: str) -> list[float]:
         vector = [0.0] * self.dimension
-        tokens = text.lower().split()
+        tokens = tokenize(text)
         if not tokens:
             return vector
         for token in tokens:

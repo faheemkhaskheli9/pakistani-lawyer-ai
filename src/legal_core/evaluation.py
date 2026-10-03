@@ -3,17 +3,20 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 
 from .generation import AnswerGenerator
+from .hybrid_retrieval import build_hybrid_retriever
 from .ingest import run_ingestion
 from .qa import answer_from_chunks
 from .retrieval import Retriever, build_retriever
+from .service import QuestionAnsweringService
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CASES = ROOT / "data" / "evaluation" / "retrieval_queries.json"
+DEFAULT_OOC = ROOT / "data" / "evaluation" / "out_of_corpus_queries.json"
 DEFAULT_DOC = ROOT / "docs" / "evaluation.md"
 
 
@@ -21,6 +24,7 @@ DEFAULT_DOC = ROOT / "docs" / "evaluation.md"
 class EvaluationCase:
     query: str
     expected_source: str
+    expected_section: str | None = None
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,8 @@ class RetrievalCaseResult:
     retrieved_sources: tuple[str | None, ...]
     precision_at_k: float
     hit: bool
+    reciprocal_rank: float = 0.0
+    section_hit: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -46,6 +52,10 @@ class EvaluationReport:
     hit_rate_at_k: float
     cases: tuple[RetrievalCaseResult, ...]
     citation_samples: tuple[CitationSample, ...]
+    mrr: float = 0.0
+    section_recall_at_k: float | None = None
+    no_source_precision: float | None = None
+    no_source_total: int = 0
 
 
 def source_name(source: str | None) -> str | None:
@@ -63,9 +73,23 @@ def load_cases(path: str | Path = DEFAULT_CASES) -> list[EvaluationCase]:
         EvaluationCase(
             query=str(row["query"]).strip(),
             expected_source=str(row["expected_source"]).strip(),
+            expected_section=(str(row["expected_section"]).strip() if row.get("expected_section") else None),
         )
         for row in rows
     ]
+
+
+def load_out_of_corpus(path: str | Path = DEFAULT_OOC) -> list[str]:
+    rows = json.loads(Path(path).read_text(encoding="utf-8"))
+    return [str(row).strip() for row in rows if str(row).strip()]
+
+
+def evaluate_no_source(service, queries: list[str]) -> float:
+    """Fraction of out-of-corpus queries correctly refused with no relevant source."""
+    if not queries:
+        raise ValueError("at least one out-of-corpus query is required")
+    refused = sum(service.ask(q).status == "no_relevant_source" for q in queries)
+    return refused / len(queries)
 
 
 def evaluate_retrieval(
@@ -88,6 +112,13 @@ def evaluate_retrieval(
         relevant = sum(source == case.expected_source for source in sources)
         precision = relevant / top_k
         hit = relevant > 0
+        rr = next((1.0 / i for i, src in enumerate(sources, 1) if src == case.expected_source), 0.0)
+        section_hit = None
+        if case.expected_section:
+            section_hit = any(
+                source_name(c.source) == case.expected_source and c.section == case.expected_section
+                for c in chunks
+            )
 
         case_results.append(
             RetrievalCaseResult(
@@ -96,6 +127,8 @@ def evaluate_retrieval(
                 retrieved_sources=sources,
                 precision_at_k=precision,
                 hit=hit,
+                reciprocal_rank=rr,
+                section_hit=section_hit,
             )
         )
 
@@ -112,6 +145,9 @@ def evaluate_retrieval(
     count = len(case_results)
     mean_precision = sum(row.precision_at_k for row in case_results) / count
     hit_rate = sum(row.hit for row in case_results) / count
+    mrr = sum(row.reciprocal_rank for row in case_results) / count
+    sectioned = [row for row in case_results if row.section_hit is not None]
+    section_recall = sum(row.section_hit for row in sectioned) / len(sectioned) if sectioned else None
 
     return EvaluationReport(
         top_k=top_k,
@@ -119,6 +155,8 @@ def evaluate_retrieval(
         hit_rate_at_k=hit_rate,
         cases=tuple(case_results),
         citation_samples=tuple(samples),
+        mrr=mrr,
+        section_recall_at_k=section_recall,
     )
 
 
@@ -130,7 +168,24 @@ def result_log_rows(report: EvaluationReport, *, run_date: str | None = None) ->
             f"{report.mean_precision_at_k:.3f} | {len(report.cases)} labeled queries |",
             f"| {run_date} | Phase 5 | Retrieval hit rate@{report.top_k} | "
             f"{report.hit_rate_at_k:.3f} | expected source present in top-k |",
+            f"| {run_date} | Phase 5 | MRR | {report.mrr:.3f} | source-level reciprocal rank |",
         ]
+        + (
+            [
+                f"| {run_date} | Phase 5 | Section recall@{report.top_k} | "
+                f"{report.section_recall_at_k:.3f} | expected section present in top-k |"
+            ]
+            if report.section_recall_at_k is not None
+            else []
+        )
+        + (
+            [
+                f"| {run_date} | Phase 5 | No-source precision | {report.no_source_precision:.3f} | "
+                f"{report.no_source_total} out-of-corpus queries refused |"
+            ]
+            if report.no_source_precision is not None
+            else []
+        )
     )
 
 
@@ -155,6 +210,17 @@ def render_report(report: EvaluationReport) -> str:
     lines = [
         f"Retrieval precision@{report.top_k}: {report.mean_precision_at_k:.3f}",
         f"Retrieval hit rate@{report.top_k}: {report.hit_rate_at_k:.3f}",
+        f"MRR: {report.mrr:.3f}",
+        *(
+            [f"Section recall@{report.top_k}: {report.section_recall_at_k:.3f}"]
+            if report.section_recall_at_k is not None
+            else []
+        ),
+        *(
+            [f"No-source precision: {report.no_source_precision:.3f} ({report.no_source_total} queries)"]
+            if report.no_source_precision is not None
+            else []
+        ),
         "",
         "Citation spot-check samples:",
     ]
@@ -172,20 +238,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cases", default=str(DEFAULT_CASES))
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--citation-samples", type=int, default=3)
+    parser.add_argument("--out-of-corpus", default=str(DEFAULT_OOC))
+    parser.add_argument("--retriever", choices=("vector", "hybrid"), default="hybrid")
+    parser.add_argument("--min-score", type=float, default=None)
     parser.add_argument("--write-docs", action="store_true")
     args = parser.parse_args(argv)
 
     run_ingestion(args.corpus, args.index_dir, embedding_provider="hashing")
-    retriever = build_retriever(
-        args.index_dir,
-        top_k=args.top_k,
-        embedding_provider="hashing",
-    )
+    builder = build_hybrid_retriever if args.retriever == "hybrid" else build_retriever
+    retriever = builder(args.index_dir, top_k=args.top_k, embedding_provider="hashing")
     report = evaluate_retrieval(
         retriever,
         load_cases(args.cases),
         top_k=args.top_k,
         citation_sample_size=max(0, args.citation_samples),
+    )
+    ooc = load_out_of_corpus(args.out_of_corpus)
+    service = QuestionAnsweringService(retriever, min_score=args.min_score)
+    report = replace(
+        report,
+        no_source_precision=evaluate_no_source(service, ooc),
+        no_source_total=len(ooc),
     )
     print(render_report(report))
     if args.write_docs:

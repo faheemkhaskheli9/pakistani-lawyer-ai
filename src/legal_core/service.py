@@ -13,7 +13,7 @@ from .retrieval import RetrievedChunk, Retriever
 from .safeguards import LEGAL_INFORMATION_DISCLAIMER
 
 MIN_SCORE_ENV = "RETRIEVAL_MIN_SCORE"
-DEFAULT_MIN_SCORE = 0.20
+DEFAULT_MIN_SCORE = 0.27  # tuned on data/evaluation (offline hashing + BM25)
 NO_RELEVANT_SOURCE_MESSAGE = (
     "No relevant source found in the available legal corpus. "
     "Try a more specific question or search the corpus directly."

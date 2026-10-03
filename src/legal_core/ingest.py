@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Iterable, List
 
 from .chunk_store import ChunkRecord, ChunkStore
-from .chunking import chunk_text
+from .chunking import chunk_by_section
 from .citation import extract_section_id
 from .embedding_pipeline import embed_new_chunks
 from .embeddings import get_embedder
@@ -67,7 +67,7 @@ class IngestionPipeline:
         `ingest_directory`, which catches this per file.
         """
         text = read_source_text(path)
-        chunks = chunk_text(text, self.chunk_size, self.chunk_overlap)
+        chunks = chunk_by_section(text, self.chunk_size, self.chunk_overlap)
         if not chunks:
             logger.info("No content chunks extracted from %s", path)
             return 0
