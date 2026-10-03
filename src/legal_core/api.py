@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .corpus_search import CorpusSearchService
@@ -12,6 +14,9 @@ from .filters import RetrievalFilters
 from .hybrid_retrieval import build_hybrid_retriever
 from .security import FixedWindowRateLimiter, api_key_matches, resolve_api_key, resolve_rate_limit
 from .service import QuestionAnsweringService
+
+
+INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 
 
 class AskRequest(BaseModel):
@@ -43,6 +48,10 @@ def create_app(
         version="0.1.0",
         description="Citation-grounded legal information and corpus search API.",
     )
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def index():
+        return HTMLResponse(INDEX_HTML.read_text(encoding="utf-8"))
 
     @app.get("/health")
     def health():

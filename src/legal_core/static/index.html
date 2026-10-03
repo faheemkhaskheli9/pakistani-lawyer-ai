@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pakistani Lawyer AI</title>
+<style>
+  :root { --bg:#f7f7f4; --fg:#1d2420; --muted:#5c665f; --card:#fff; --line:#dcdfd8; --accent:#0b6b3a; --warn:#8a4b00; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141815; --fg:#e8ece6; --muted:#9aa59d; --card:#1d231f; --line:#2e3730; --accent:#4cc38a; --warn:#e0a458; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .disclaimer { border-left: 4px solid var(--warn); background: var(--card); padding: 10px 14px; margin-bottom: 16px; font-size: .9rem; }
+  .tabs { display:flex; gap:8px; margin-bottom: 12px; }
+  .tabs button { padding: 8px 14px; border:1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 8px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--accent); color:#fff; border-color: var(--accent); }
+  textarea, input, select { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; background: var(--card); color: var(--fg); font: inherit; }
+  textarea { min-height: 90px; resize: vertical; }
+  .row { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:8px; margin: 8px 0; }
+  .go { padding: 10px 18px; background: var(--accent); color:#fff; border:0; border-radius:8px; cursor:pointer; font: inherit; }
+  .go:disabled { opacity:.6; cursor: wait; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius:10px; padding: 12px 14px; margin-top: 12px; }
+  .cite { font-weight: 600; color: var(--accent); }
+  .meta { color: var(--muted); font-size: .85rem; }
+  .status { font-weight:600; }
+  [hidden] { display:none !important; }
+  label.small { font-size:.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pakistani Lawyer AI</h1>
+  <p class="sub">Citation-grounded legal information over a curated corpus.</p>
+  <div class="disclaimer" id="disclaimer">This service provides legal information for research purposes only. It is not legal advice and is not a substitute for advice from a qualified lawyer.</div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-ask" aria-selected="true">Ask</button>
+    <button role="tab" id="tab-search" aria-selected="false">Search corpus</button>
+  </div>
+
+  <section id="panel-ask">
+    <label class="small" for="apikey">API key (stored for this session only)</label>
+    <input id="apikey" type="password" autocomplete="off" placeholder="X-API-Key">
+    <p></p>
+    <textarea id="question" placeholder="e.g. Who is competent to enter into a contract?"></textarea>
+    <p><button class="go" id="ask-go">Ask</button></p>
+  </section>
+
+  <section id="panel-search" hidden>
+    <input id="q" placeholder="Search the corpus">
+    <div class="row">
+      <input id="f-jurisdiction" placeholder="Jurisdiction (e.g. Federal)">
+      <input id="f-court" placeholder="Court">
+      <select id="f-type"><option value="">Any type</option><option>statute</option><option>case_law</option><option>constitution</option><option>regulation</option></select>
+      <input id="f-topk" type="number" min="1" max="100" placeholder="Top K">
+    </div>
+    <p><button class="go" id="search-go">Search</button></p>
+  </section>
+
+  <div id="out" aria-live="polite"></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const out = $("out");
+const store = { get(k){ try { return sessionStorage.getItem(k) || ""; } catch { return ""; } },
+                set(k,v){ try { sessionStorage.setItem(k,v); } catch {} } };
+$("apikey").value = store.get("apikey");
+
+function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+function show(tab) {
+  const ask = tab === "ask";
+  $("panel-ask").hidden = !ask; $("panel-search").hidden = ask;
+  $("tab-ask").setAttribute("aria-selected", ask); $("tab-search").setAttribute("aria-selected", !ask);
+  out.replaceChildren();
+}
+$("tab-ask").onclick = () => show("ask"); $("tab-search").onclick = () => show("search");
+
+function citationCard(c) {
+  const card = el("div", "card");
+  card.append(el("div", "cite", c.citation));
+  card.append(el("div", "meta", "relevance " + Number(c.score).toFixed(2)));
+  card.append(el("div", null, c.excerpt));
+  return card;
+}
+function error(msg) { out.replaceChildren(el("div", "card status", msg)); }
+
+async function call(url, opts, btn) {
+  btn.disabled = true; out.replaceChildren(el("div", "meta", "Working…"));
+  try {
+    const res = await fetch(url, opts);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.detail || ("Request failed (" + res.status + ")"));
+    return body;
+  } finally { btn.disabled = false; }
+}
+
+$("ask-go").onclick = async () => {
+  const question = $("question").value.trim(); if (!question) return;
+  store.set("apikey", $("apikey").value);
+  try {
+    const r = await call("/api/v1/ask", { method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": $("apikey").value },
+      body: JSON.stringify({ question }) }, $("ask-go"));
+    const frag = document.createDocumentFragment();
+    const head = el("div", "card");
+    head.append(el("div", "status", r.status === "answered" ? "Answer" : r.message));
+    if (r.answer) head.append(el("p", null, r.answer.answer));
+    frag.append(head);
+    ((r.answer && r.answer.citations) || []).forEach((c) => frag.append(citationCard(c)));
+    frag.append(el("div", "meta", r.disclaimer));
+    out.replaceChildren(frag);
+  } catch (e) { error(e.message); }
+};
+
+$("search-go").onclick = async () => {
+  const q = $("q").value.trim(); if (!q) return;
+  const p = new URLSearchParams({ q });
+  [["jurisdiction","f-jurisdiction"],["court","f-court"],["document_type","f-type"],["top_k","f-topk"]]
+    .forEach(([k,id]) => { const v = $(id).value.trim(); if (v) p.set(k, v); });
+  try {
+    const r = await call("/api/v1/search?" + p, {}, $("search-go"));
+    const frag = document.createDocumentFragment();
+    if (!r.results.length) frag.append(el("div", "card status", "No relevant source found."));
+    r.results.forEach((c) => frag.append(citationCard(c)));
+    if (r.disclaimer) frag.append(el("div", "meta", r.disclaimer));
+    out.replaceChildren(frag);
+  } catch (e) { error(e.message); }
+};
+</script>
+</body>
+</html>

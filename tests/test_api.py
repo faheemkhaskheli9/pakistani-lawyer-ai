@@ -85,3 +85,11 @@ def test_search_endpoint_remains_available_without_llm_auth():
     response = client().get("/api/v1/search", params={"q": "source", "top_k": 3})
     assert response.status_code == 200
     assert response.json()["results"][0]["source_path"] == "data/corpus/sample.txt"
+
+
+def test_index_serves_ui_with_disclaimer():
+    response = client().get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "not legal advice" in response.text
+    assert "textContent" in response.text and "innerHTML" not in response.text
