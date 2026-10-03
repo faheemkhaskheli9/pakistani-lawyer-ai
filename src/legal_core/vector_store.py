@@ -157,6 +157,22 @@ class VectorStore:
         self._metadata[id_] = metadata
         self._save()
 
+    def delete(self, ids) -> int:
+        """Remove the given ids; returns how many were actually present."""
+        doomed = {i for i in ids if i in self._documents}
+        if not doomed:
+            return 0
+        keep = [n for n, id_ in enumerate(self._ids) if id_ not in doomed]
+        self._vectors = self._vectors[keep] if keep else None
+        self._ids = [self._ids[n] for n in keep]
+        for id_ in doomed:
+            del self._documents[id_]
+            del self._metadata[id_]
+        if not self._ids:
+            self.dimension = None
+        self._save()
+        return len(doomed)
+
     def query(self, embedding: list[float], top_k: int = 5) -> list[VectorMatch]:
         """Return up to `top_k` matches, highest cosine similarity first.
 

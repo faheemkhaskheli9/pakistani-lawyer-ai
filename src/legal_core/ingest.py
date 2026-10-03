@@ -22,8 +22,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import logging
+import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List
 
@@ -58,6 +61,8 @@ class IngestionPipeline:
         self.store = store
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.seen_ids: set[str] = set()
+        self.failed_sources: set[str] = set()
 
     def ingest_file(self, path: Path) -> int:
         """Ingest one file; returns the number of new/updated chunks.
@@ -91,6 +96,7 @@ class IngestionPipeline:
                 )
             )
         self.store.upsert(records)
+        self.seen_ids.update(record.id for record in records)
         logger.info("Ingested %s: %d chunks", path, len(records))
         return len(records)
 
@@ -105,10 +111,48 @@ class IngestionPipeline:
             try:
                 total += self.ingest_file(path)
             except DocumentParseError as exc:
+                self.failed_sources.add(str(path))
                 logger.error("Skipping malformed source document %s: %s", path, exc)
                 continue
         logger.info("Ingestion run complete: %d chunks written from %s", total, source_dir)
         return total
+
+
+INDEX_MANIFEST = "manifest.json"
+INDEX_FORMAT_VERSION = 1
+
+
+def write_index_manifest(
+    index_dir: Path,
+    *,
+    corpus_dir,
+    chunk_store: ChunkStore,
+    embedder,
+    embedding_provider: str | None,
+    chunk_size: int,
+    chunk_overlap: int,
+) -> dict:
+    """Record what the index was built from, so it can be audited and versioned."""
+    files = {}
+    for path in iter_source_files(corpus_dir):
+        files[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    corpus_hash = hashlib.sha256(json.dumps(files, sort_keys=True).encode("utf-8")).hexdigest()
+    manifest = {
+        "format_version": INDEX_FORMAT_VERSION,
+        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "embedding_provider": (embedding_provider or os.environ.get("EMBEDDING_PROVIDER") or "hashing"),
+        "embedding_dimension": embedder.dimension,
+        "chunk_size": chunk_size,
+        "chunk_overlap": chunk_overlap,
+        "chunk_count": len(chunk_store),
+        "corpus_sha256": corpus_hash,
+        "sources": files,
+    }
+    path = index_dir / INDEX_MANIFEST
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(path)
+    return manifest
 
 
 def run_ingestion(
@@ -141,8 +185,30 @@ def run_ingestion(
     pipeline = IngestionPipeline(chunk_store, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     ingested = pipeline.ingest_directory(corpus_dir)
 
+    # Drop chunks whose source changed or disappeared, so edited/removed law
+    # never lingers in the index. A source that failed to parse keeps its
+    # previous chunks rather than silently vanishing.
+    stale = [
+        record.id
+        for record in chunk_store.all()
+        if record.id not in pipeline.seen_ids and record.source not in pipeline.failed_sources
+    ]
+    pruned = chunk_store.delete(stale)
+    vector_store.delete(stale)
+    if pruned:
+        logger.info("Pruned %d stale chunk(s)", pruned)
+
     embedder = get_embedder(embedding_provider)
     embedded = embed_new_chunks(chunk_store, embedder, vector_store)
+    write_index_manifest(
+        index_dir,
+        corpus_dir=corpus_dir,
+        chunk_store=chunk_store,
+        embedder=embedder,
+        embedding_provider=embedding_provider,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+    )
     return ingested, embedded
 
 
