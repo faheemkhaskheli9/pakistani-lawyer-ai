@@ -4,7 +4,7 @@
 > This is an original, from-scratch build. It is not affiliated with, and does not
 > contain any code, prompts, data, or business logic from, any employer or client.
 
-![status](https://img.shields.io/badge/status-in%20progress-yellow)
+![status](https://img.shields.io/badge/status-MVP-green)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
@@ -112,7 +112,7 @@ pakistani-lawyer-ai/
 git clone <this-repo-url>
 cd pakistani-lawyer-ai
 python -m venv .venv && source .venv/bin/activate   # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt   # or: pip install -e .
+pip install -e ".[dev]"           # optional extras: [embeddings], [anthropic]
 cp .env.example .env              # fill in API keys / config
 ```
 
@@ -133,7 +133,8 @@ intentionally small (a demo, not a production legal database) — see
 ## 9. Training / Execution
 
 ```bash
-# Phase 1: ingest + embed the seed corpus into data/index
+# Phase 1: ingest + embed the seed corpus into data/index (re-runs prune stale chunks
+# and write data/index/manifest.json describing what the index was built from)
 python -m legal_core.ingest --corpus data/corpus
 
 # Phase 2: top-k retrieval over that index, ranked by cosine similarity
@@ -165,19 +166,58 @@ set, and manual citation-accuracy spot checks.
 
 ## 11. Results
 
-_To be filled in as the implementation progresses — screenshots, metrics
-tables, and sample outputs go here._
+Seed corpus, offline hashing embedder, hybrid retriever, top-k = 3
+(25 labeled queries + 10 out-of-corpus queries):
+
+| Metric | Value |
+|--------|-------|
+| Precision@3 | 0.787 |
+| Hit rate@3 | 1.000 |
+| MRR | 1.000 |
+| Section recall@3 | 0.920 |
+| No-source precision | 1.000 |
+
+The corpus is tiny, so these numbers show the pipeline works, not that it
+generalises; see `docs/evaluation.md`.
 
 ## 12. API
 
-_Once Phase 3 lands: document the QA endpoint here (or link to
-auto-generated OpenAPI docs at `/docs`)._
+Run `uvicorn legal_core.api:app` (with `PYTHONPATH=src` or after `pip install -e .`),
+open `http://localhost:8000/` for the web UI, or `/docs` for OpenAPI.
+
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /` | none | Web UI (ask, search with filters, citations, disclaimer) |
+| `GET /health` | none | Liveness |
+| `POST /api/v1/ask` | `X-API-Key` | Grounded answer with verified citations, or `no_relevant_source` |
+| `GET /api/v1/search` | none (rate limited) | Hybrid BM25 + vector corpus search; filters: `jurisdiction`, `court`, `document_type`, `case_citation`, `date_from`, `date_to`, `top_k` |
+
+```bash
+curl -X POST localhost:8000/api/v1/ask -H "X-API-Key: local-development-key" \
+  -H "content-type: application/json" -d '{"question": "Who is competent to enter into a contract?"}'
+```
+
+`status` is one of `answered`, `no_relevant_source`, or `citation_verification_failed`.
+Every response carries the legal-information disclaimer.
+
+**LLM provider.** `LLM_PROVIDER=local` (default) is an offline extractive provider.
+`LLM_PROVIDER=anthropic` (+ `ANTHROPIC_API_KEY`, `pip install -e ".[anthropic]"`) uses
+the Anthropic API, restricted to the retrieved sources; every inline
+`[SOURCE n: ...]` marker is verified against the retrieved chunks, with one retry
+before an answer is withheld.
+
+**Deployment hardening.** Set `PAKISTANI_LAWYER_ENV=production` to refuse the default
+dev API key. Behind a reverse proxy set `TRUSTED_PROXY_COUNT` so rate limits key on
+the real client (`X-Forwarded-For` is ignored otherwise). Rate-limit state is
+in-memory per process. Access logs are JSON (`legal_core.access`) with a request id
+and latency; query text is never logged.
 
 ## 13. Docker
 
 ```bash
 docker build -t pakistani-lawyer-ai .
-docker run -p 8000:8000 pakistani-lawyer-ai
+docker run -p 8000:8000 pakistani-lawyer-ai   # builds the index on first start
+# or: docker compose up   (mounts ./data; set REINGEST=1 to rebuild the index)
 ```
 
 ## 14. Tests
@@ -194,14 +234,18 @@ pytest tests/
 - The corpus is a small public-domain sample, not a comprehensive or
   up-to-date legal database — answers are only as complete as the seed
   corpus.
-- Scaffold stage: no code has been implemented yet — see §5 Implementation
-  Plan.
+- The relevance floor (`RETRIEVAL_MIN_SCORE`, default 0.27) was tuned on the offline
+  hashing embedder and a 35-query set; re-tune it when switching embedders or corpus.
+- No user accounts, document upload, Urdu support or case-similarity search yet
+  (see `docs/IMPROVEMENT_PLAN.md`, P3).
 
 ## 16. Future Work
 
 - Expand the corpus (still public-domain only) to cover more statutes.
-- Add a citation-verification pass that checks a generated answer's claims
-  against the retrieved text before showing it.
+- Claim-level (not just citation-level) verification of generated answers.
+- Real public-source ingestion: `python -m legal_core.sources manifest.json` (license
+  allowlist enforced, provenance in `sources.json`; see `data/sources/manifest.example.json`).
+- See `docs/IMPROVEMENT_PLAN.md` for the full roadmap.
 - Track open items as GitHub Issues.
 
 ## 17. Disclosure
@@ -215,4 +259,4 @@ This project is not legal advice and is not affiliated with any law firm,
 court, or government body.
 
 ---
-_Last updated: 2026-09-12_
+_Last updated: 2026-10-03_

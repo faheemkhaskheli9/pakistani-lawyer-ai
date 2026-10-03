@@ -43,7 +43,11 @@ def test_search_is_rate_limited():
 
 def test_rate_limit_keys_on_forwarded_client_only_when_trusted():
     c = make(qa_rate_limit=1, trusted_proxies=1)
-    post = lambda ip: c.post("/api/v1/ask", json={"question": "q"}, headers={"X-API-Key": "k", "X-Forwarded-For": ip}).status_code
+
+    def post(ip):
+        headers = {"X-API-Key": "k", "X-Forwarded-For": ip}
+        return c.post("/api/v1/ask", json={"question": "q"}, headers=headers).status_code
+
     assert post("1.1.1.1") == 200 and post("2.2.2.2") == 200 and post("1.1.1.1") == 429
 
 
@@ -55,3 +59,17 @@ def test_access_log_has_request_id_and_never_logs_query(caplog):
     record = json.loads(caplog.records[-1].message)
     assert record["request_id"] == "abc123" and record["status"] == 200 and record["latency_ms"] >= 0
     assert "very-secret-client-matter" not in caplog.text
+
+
+def test_default_services_honor_index_dir_env(tmp_path, monkeypatch):
+    from legal_core import api
+    from legal_core.ingest import run_ingestion
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "a.txt").write_text("Section 1. Bail\nan accused person may apply for bail", encoding="utf-8")
+    run_ingestion(corpus, tmp_path / "idx", embedding_provider="hashing")
+    monkeypatch.setenv("INDEX_DIR", str(tmp_path / "idx"))
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "hashing")
+    qa, search = api._default_services()
+    assert len(search.search("bail").results) >= 1

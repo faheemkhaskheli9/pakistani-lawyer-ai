@@ -20,3 +20,7 @@ chroma/
 .vscode/*
 !.vscode/launch.json
 .idea/
+
+.coverage
+htmlcov/
+*.egg-info/

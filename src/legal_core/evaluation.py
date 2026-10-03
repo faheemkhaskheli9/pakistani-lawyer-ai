@@ -241,12 +241,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out-of-corpus", default=str(DEFAULT_OOC))
     parser.add_argument("--retriever", choices=("vector", "hybrid"), default="hybrid")
     parser.add_argument("--min-score", type=float, default=None)
+    parser.add_argument(
+        "--embedding-provider",
+        default="hashing",
+        help="hashing (offline default) or sentence-transformers (needs the 'embeddings' extra). "
+        "Real embeddings use a different score scale, so tune --min-score for them.",
+    )
     parser.add_argument("--write-docs", action="store_true")
     args = parser.parse_args(argv)
 
-    run_ingestion(args.corpus, args.index_dir, embedding_provider="hashing")
+    run_ingestion(args.corpus, args.index_dir, embedding_provider=args.embedding_provider)
     builder = build_hybrid_retriever if args.retriever == "hybrid" else build_retriever
-    retriever = builder(args.index_dir, top_k=args.top_k, embedding_provider="hashing")
+    retriever = builder(args.index_dir, top_k=args.top_k, embedding_provider=args.embedding_provider)
     report = evaluate_retrieval(
         retriever,
         load_cases(args.cases),

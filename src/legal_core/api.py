@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import logging
 import time
 import uuid
@@ -16,6 +17,7 @@ from pydantic import BaseModel, Field
 from .corpus_search import CorpusSearchService
 from .filters import RetrievalFilters
 from .hybrid_retrieval import build_hybrid_retriever
+from .retrieval import DEFAULT_INDEX_DIR
 from .security import (
     DEFAULT_SEARCH_RATE_LIMIT,
     SEARCH_RATE_LIMIT_ENV,
@@ -38,7 +40,15 @@ class AskRequest(BaseModel):
 
 
 def _default_services():
-    retriever = build_hybrid_retriever()
+    index_dir = os.environ.get("INDEX_DIR") or DEFAULT_INDEX_DIR
+    retriever = build_hybrid_retriever(index_dir)
+    if len(retriever.vector_store) == 0:
+        access_log.warning(
+            "Search index at %s is empty or missing; every question will return "
+            "'no relevant source'. Run: python -m legal_core.ingest --corpus data/corpus --index-dir %s",
+            index_dir,
+            index_dir,
+        )
     return QuestionAnsweringService(retriever), CorpusSearchService(retriever)
 
 

@@ -8,7 +8,9 @@ def test_dockerfile_runs_fastapi_and_exposes_healthcheck():
     text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     assert "FROM python:3.11-slim" in text
     assert "pip install --no-cache-dir -r requirements.txt" in text
-    assert "legal_core.api:app" in text
+    assert "docker/entrypoint.sh" in text
+    assert "USER app" in text
+    assert "legal_core.api:app" in (ROOT / "docker" / "entrypoint.sh").read_text(encoding="utf-8")
     assert "/health" in text
     assert "EXPOSE 8000" in text
 
