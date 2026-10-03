@@ -139,7 +139,7 @@ python -m legal_core.ingest --corpus data/corpus
 # Phase 2: top-k retrieval over that index, ranked by cosine similarity
 python -m legal_core.retrieval "admissibility of evidence" --top-k 3
 
-uvicorn src.api:app --reload   # once Phase 3 lands
+uvicorn legal_core.api:app --reload   # needs PYTHONPATH=src or `pip install -e .`
 ```
 
 `k` is configurable per call (`--top-k` / `Retriever.retrieve(query, top_k=...)`),

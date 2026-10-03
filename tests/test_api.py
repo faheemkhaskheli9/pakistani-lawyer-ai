@@ -35,7 +35,7 @@ class QAService:
 
 
 class SearchService:
-    def search(self, query, top_k=None):
+    def search(self, query, top_k=None, filters=None):
         return CorpusSearchResponse(
             query=query,
             results=(

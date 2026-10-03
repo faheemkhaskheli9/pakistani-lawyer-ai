@@ -48,6 +48,13 @@ class EvaluationReport:
     citation_samples: tuple[CitationSample, ...]
 
 
+def source_name(source: str | None) -> str | None:
+    """Normalize a retrieved source (usually a file path) to its file name."""
+    if not source:
+        return None
+    return Path(source).name
+
+
 def load_cases(path: str | Path = DEFAULT_CASES) -> list[EvaluationCase]:
     rows = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(rows, list) or not rows:
@@ -77,7 +84,7 @@ def evaluate_retrieval(
 
     for case in cases:
         chunks = retriever.retrieve(case.query, top_k=top_k)
-        sources = tuple(chunk.source for chunk in chunks)
+        sources = tuple(source_name(chunk.source) for chunk in chunks)
         relevant = sum(source == case.expected_source for source in sources)
         precision = relevant / top_k
         hit = relevant > 0
