@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 
 from .citation_verification import CitationVerificationReport, verify_citations
-from .generation import AnswerGenerator
+from .generation import AnswerGenerator, GenerationError
 from .filters import RetrievalFilters
 from .qa import LegalAnswer, answer_from_chunks
 from .query_analysis import QueryAnalysis, analyze_query
@@ -100,6 +100,8 @@ def _merge_ranked_chunks(groups: list[list[RetrievedChunk]]) -> list[RetrievedCh
 class QuestionAnsweringService:
     """Retrieve, apply a relevance floor, then generate only when grounded."""
 
+    MAX_GENERATION_ATTEMPTS = 2
+
     def __init__(
         self,
         retriever: Retriever,
@@ -158,12 +160,27 @@ class QuestionAnsweringService:
                 query_analysis=analysis,
             )
 
-        answer = answer_from_chunks(
-            question.strip(),
-            relevant,
-            generator=self.generator,
-        )
-        verification = verify_citations(answer, relevant)
+        verification = None
+        answer = None
+        # One retry: hosted models are non-deterministic, so a failed
+        # citation check gets a second attempt before the answer is withheld.
+        for _attempt in range(self.MAX_GENERATION_ATTEMPTS):
+            try:
+                answer = answer_from_chunks(
+                    question.strip(),
+                    relevant,
+                    generator=self.generator,
+                )
+            except GenerationError:
+                return QAResult(
+                    status="no_relevant_source",
+                    message=NO_RELEVANT_SOURCE_MESSAGE,
+                    answer=None,
+                    query_analysis=analysis,
+                )
+            verification = verify_citations(answer, relevant)
+            if verification.verified:
+                break
         if not verification.verified:
             return QAResult(
                 status="citation_verification_failed",
