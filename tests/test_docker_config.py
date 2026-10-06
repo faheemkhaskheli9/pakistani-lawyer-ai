@@ -25,3 +25,10 @@ def test_dockerignore_excludes_local_secrets():
     entries = set((ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines())
     assert ".env" in entries
     assert ".git" in entries
+
+
+def test_container_runs_as_non_root_and_has_no_default_api_key():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "USER appuser" in dockerfile
+    assert "legal_core.ingest" in dockerfile
+    assert "local-development-key" not in (ROOT / "docker-compose.yml").read_text(encoding="utf-8")

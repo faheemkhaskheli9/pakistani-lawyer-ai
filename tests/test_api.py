@@ -35,7 +35,7 @@ class QAService:
 
 
 class SearchService:
-    def search(self, query, top_k=None):
+    def search(self, query, top_k=None, filters=None):
         return CorpusSearchResponse(
             query=query,
             results=(
@@ -81,7 +81,15 @@ def test_ask_endpoint_returns_grounded_answer_and_citations():
     assert body["disclaimer"] == LEGAL_INFORMATION_DISCLAIMER
 
 
-def test_search_endpoint_remains_available_without_llm_auth():
-    response = client().get("/api/v1/search", params={"q": "source", "top_k": 3})
+def test_search_endpoint_requires_api_key():
+    assert client().get("/api/v1/search", params={"q": "source"}).status_code == 401
+
+
+def test_search_endpoint_works_with_api_key_and_no_llm():
+    response = client().get(
+        "/api/v1/search",
+        params={"q": "source", "top_k": 3},
+        headers={"X-API-Key": TEST_API_KEY},
+    )
     assert response.status_code == 200
     assert response.json()["results"][0]["source_path"] == "data/corpus/sample.txt"

@@ -9,8 +9,15 @@ from pydantic import BaseModel, Field
 
 from .corpus_search import CorpusSearchService
 from .filters import RetrievalFilters
+from .generation import GenerationError
 from .hybrid_retrieval import build_hybrid_retriever
-from .security import FixedWindowRateLimiter, api_key_matches, resolve_api_key, resolve_rate_limit
+from .security import (
+    SlidingWindowRateLimiter,
+    api_key_matches,
+    client_identity,
+    resolve_api_key,
+    resolve_rate_limit,
+)
 from .service import QuestionAnsweringService
 
 
@@ -29,14 +36,15 @@ def create_app(
     search_service: Any | None = None,
     api_key: str | None = None,
     qa_rate_limit: int | None = None,
+    trust_proxy: bool | None = None,
 ) -> FastAPI:
+    expected_api_key = resolve_api_key(api_key)  # fail fast when no key is configured
     if qa_service is None or search_service is None:
         default_qa, default_search = _default_services()
         qa_service = qa_service or default_qa
         search_service = search_service or default_search
 
-    expected_api_key = resolve_api_key(api_key)
-    limiter = FixedWindowRateLimiter(resolve_rate_limit(qa_rate_limit))
+    limiter = SlidingWindowRateLimiter(resolve_rate_limit(qa_rate_limit))
 
     app = FastAPI(
         title="Pakistani Lawyer AI",
@@ -48,31 +56,34 @@ def create_app(
     def health():
         return {"status": "ok"}
 
+    def guard(request: Request, x_api_key: str | None) -> None:
+        if not api_key_matches(x_api_key, expected_api_key):
+            raise HTTPException(status_code=401, detail="Invalid or missing API key")
+        if not limiter.allow(client_identity(request, trust_proxy=trust_proxy)):
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded",
+                headers={"Retry-After": "60"},
+            )
+
     @app.post("/api/v1/ask")
     def ask(
         payload: AskRequest,
         request: Request,
         x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     ):
-        if not api_key_matches(x_api_key, expected_api_key):
-            raise HTTPException(status_code=401, detail="Invalid or missing API key")
-
-        client_ip = request.client.host if request.client else "unknown"
-        if not limiter.allow(client_ip):
-            raise HTTPException(
-                status_code=429,
-                detail="QA rate limit exceeded",
-                headers={"Retry-After": "60"},
-            )
-
+        guard(request, x_api_key)
         try:
             result = qa_service.ask(payload.question)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except GenerationError as exc:
+            raise HTTPException(status_code=502, detail="Answer generation failed") from exc
         return asdict(result)
 
     @app.get("/api/v1/search")
     def search(
+        request: Request,
         q: str = Query(min_length=1, max_length=5000),
         top_k: int | None = Query(default=None, ge=1, le=100),
         jurisdiction: str | None = Query(default=None),
@@ -81,7 +92,9 @@ def create_app(
         case_citation: str | None = Query(default=None),
         date_from: str | None = Query(default=None),
         date_to: str | None = Query(default=None),
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     ):
+        guard(request, x_api_key)
         try:
             filters = RetrievalFilters(
                 jurisdiction=jurisdiction,
@@ -99,4 +112,14 @@ def create_app(
     return app
 
 
-app = create_app()
+_app: FastAPI | None = None
+
+
+def __getattr__(name: str):
+    """Build ``app`` lazily so importing this module has no side effects."""
+    global _app
+    if name == "app":
+        if _app is None:
+            _app = create_app()
+        return _app
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -57,7 +57,7 @@ def test_expected_source_is_returned_in_top_k(tmp_path, labeled_queries):
     failures = []
     for row in labeled_queries:
         results = retriever.retrieve(row["query"])
-        sources = [result.source for result in results]
+        sources = [Path(result.source).name for result in results]
         if row["expected_source"] not in sources:
             failures.append(
                 {

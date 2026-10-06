@@ -5,8 +5,8 @@ import os
 from dataclasses import dataclass
 
 from .citation_verification import CitationVerificationReport, verify_citations
-from .generation import AnswerGenerator
 from .filters import RetrievalFilters
+from .generation import AnswerGenerator
 from .qa import LegalAnswer, answer_from_chunks
 from .query_analysis import QueryAnalysis, analyze_query
 from .retrieval import RetrievedChunk, Retriever

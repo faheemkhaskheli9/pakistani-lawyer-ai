@@ -40,6 +40,7 @@ def test_search_api_builds_metadata_filters():
             "date_from": "2025-01-01",
             "date_to": "2025-12-31",
         },
+        headers={"X-API-Key": "test-key"},
     )
     assert response.status_code == 200
     assert search.filters.jurisdiction == "Sindh"
@@ -60,5 +61,6 @@ def test_search_api_rejects_invalid_date_filter():
     response = client.get(
         "/api/v1/search",
         params={"q": "x", "date_from": "not-a-date"},
+        headers={"X-API-Key": "test-key"},
     )
     assert response.status_code == 400

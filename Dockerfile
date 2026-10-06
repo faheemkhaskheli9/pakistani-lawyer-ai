@@ -12,6 +12,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src ./src
 COPY data ./data
 
+# Build the search index at image build time so /ask works out of the box.
+RUN python -m legal_core.ingest --corpus data/corpus \
+    && useradd --system --no-create-home appuser \
+    && chown -R appuser /app/data
+USER appuser
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

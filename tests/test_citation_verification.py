@@ -1,8 +1,6 @@
 """Tests for citation integrity verification (issue #17)."""
 from __future__ import annotations
 
-from dataclasses import replace
-
 from legal_core.citation_verification import verify_citations
 from legal_core.generation import AnswerGenerator
 from legal_core.llm import LLMProvider

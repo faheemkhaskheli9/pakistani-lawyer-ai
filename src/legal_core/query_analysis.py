@@ -71,7 +71,6 @@ def classify_intent(query: str) -> str:
         for phrase in (
             "define ",
             "definition of",
-            "what does ",
             "meaning of",
             "what is meant by",
         )

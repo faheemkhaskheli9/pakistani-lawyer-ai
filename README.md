@@ -41,8 +41,8 @@ loop and renders citations next to each answer.
 ## 3. Technology Stack
 
 - Python, FastAPI (API layer)
-- sentence-transformers for embeddings, a local vector store (FAISS or
-  Chroma) — no paid vector DB required
+- sentence-transformers for embeddings, a local vector store (a simple
+  numpy-based store persisted to disk) — no paid vector DB required
 - LLM behind a swappable provider interface (see `multi-llm-router` in this
   portfolio for the general provider-swap pattern) — a fake/local backend by
   default so the project runs with no API key
@@ -139,7 +139,9 @@ python -m legal_core.ingest --corpus data/corpus
 # Phase 2: top-k retrieval over that index, ranked by cosine similarity
 python -m legal_core.retrieval "admissibility of evidence" --top-k 3
 
-uvicorn src.api:app --reload   # once Phase 3 lands
+# Phase 3: serve the API (an API key is required; there is no default)
+export PAKISTANI_LAWYER_API_KEY="choose-a-long-random-secret"
+uvicorn legal_core.api:app --reload
 ```
 
 `k` is configurable per call (`--top-k` / `Retriever.retrieve(query, top_k=...)`),
@@ -194,7 +196,7 @@ pytest tests/
 - The corpus is a small public-domain sample, not a comprehensive or
   up-to-date legal database — answers are only as complete as the seed
   corpus.
-- Scaffold stage: no code has been implemented yet — see §5 Implementation
+- Early stage: retrieval, citation verification and the API are implemented; a real corpus, LLM provider and Urdu support are not yet — see the open GitHub issues for the roadmap
   Plan.
 
 ## 16. Future Work

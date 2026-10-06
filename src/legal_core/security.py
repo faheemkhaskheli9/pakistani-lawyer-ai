@@ -9,7 +9,7 @@ from threading import Lock
 
 API_KEY_ENV = "PAKISTANI_LAWYER_API_KEY"
 RATE_LIMIT_ENV = "QA_RATE_LIMIT_PER_MINUTE"
-DEFAULT_DEV_API_KEY = "local-development-key"
+TRUST_PROXY_ENV = "TRUST_PROXY"
 DEFAULT_RATE_LIMIT = 30
 
 
@@ -18,9 +18,11 @@ def resolve_api_key(api_key: str | None = None, *, env=None) -> str:
         value = api_key.strip()
     else:
         env = os.environ if env is None else env
-        value = env.get(API_KEY_ENV, DEFAULT_DEV_API_KEY).strip()
+        value = (env.get(API_KEY_ENV) or "").strip()
     if not value:
-        raise ValueError("API key must not be empty")
+        raise ValueError(
+            f"API key is required: set {API_KEY_ENV} (there is no built-in default)"
+        )
     return value
 
 
@@ -45,8 +47,23 @@ def api_key_matches(provided: str | None, expected: str) -> bool:
     return bool(provided) and hmac.compare_digest(provided, expected)
 
 
-class FixedWindowRateLimiter:
+def client_identity(request, *, trust_proxy: bool | None = None, env=None) -> str:
+    """Return the client IP, honouring X-Forwarded-For only when explicitly trusted."""
+    if trust_proxy is None:
+        env = os.environ if env is None else env
+        trust_proxy = (env.get(TRUST_PROXY_ENV) or "").strip().lower() in {"1", "true", "yes"}
+    if trust_proxy:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        first = forwarded.split(",")[0].strip()
+        if first:
+            return first
+    return request.client.host if request.client else "unknown"
+
+
+class SlidingWindowRateLimiter:
     """Thread-safe in-memory sliding-window limiter keyed by client identity."""
+
+    _SWEEP_EVERY = 256
 
     def __init__(self, limit: int, window_seconds: float = 60.0, *, clock=None):
         self.limit = resolve_rate_limit(limit)
@@ -54,11 +71,19 @@ class FixedWindowRateLimiter:
         self.clock = clock or time.monotonic
         self._hits = defaultdict(deque)
         self._lock = Lock()
+        self._calls = 0
+
+    def _sweep(self, cutoff: float) -> None:
+        for key in [k for k, b in self._hits.items() if not b or b[-1] <= cutoff]:
+            del self._hits[key]
 
     def allow(self, key: str) -> bool:
         now = self.clock()
         cutoff = now - self.window_seconds
         with self._lock:
+            self._calls += 1
+            if self._calls % self._SWEEP_EVERY == 0:
+                self._sweep(cutoff)
             bucket = self._hits[key]
             while bucket and bucket[0] <= cutoff:
                 bucket.popleft()
@@ -66,3 +91,7 @@ class FixedWindowRateLimiter:
                 return False
             bucket.append(now)
             return True
+
+
+# Backwards-compatible alias (the old name was misleading).
+FixedWindowRateLimiter = SlidingWindowRateLimiter

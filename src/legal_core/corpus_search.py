@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 from .filters import RetrievalFilters
-from .retrieval import Retriever, RetrievedChunk
+from .retrieval import RetrievedChunk, Retriever
 from .safeguards import LEGAL_INFORMATION_DISCLAIMER
 
 
