@@ -1,11 +1,14 @@
 # Pakistani Lawyer AI — Product Requirements Document
 
 **Repository:** `faheemkhaskheli9/pakistani-lawyer-ai`  
-**Product Type:** Legal Research, Document Intelligence, and AI Assistant Platform  
+**Product Type:** Web application — legal research, document intelligence, and AI assistant platform  
 **Primary Market:** Pakistan  
-**Status:** In development  
-**Version:** 1.0  
-**Date:** September 2026
+**Status:** In development (backend API implemented; web frontend not yet built)  
+**Version:** 1.1  
+**Date:** October 2026  
+**Companion docs:** [TRD](TRD.md) · [System Design](system-design.md) · [Architecture notes](architecture.md)
+
+> **Revision 1.1:** the product is a **web application** (browser-based UI over the existing FastAPI backend), not an API/CLI-only tool. §1.1, §38 (rewritten), §45, §47 and §48 were updated accordingly; all other sections are unchanged.
 
 ## 1. Product Overview
 
@@ -26,6 +29,16 @@ The system combines:
 - research workspaces;
 - citation verification;
 - lawyer productivity tools.
+
+### 1.1 Delivery Form: Web Application
+
+Pakistani Lawyer AI is delivered as a **responsive web application**:
+
+- a browser UI (desktop first, usable on mobile) for asking questions, searching the corpus, and inspecting sources;
+- a backend API (FastAPI, `legal_core` domain layer) that the UI consumes and that remains usable directly by integrators;
+- no installation required for end users; sign-in with an account (see §28).
+
+The API and CLI that exist today are the foundation of the web app, not the end product. Every user-facing capability in §7 is expected to be reachable from the web UI.
 
 The product must prioritize **source verification and traceability** over unrestricted LLM generation.
 
@@ -614,24 +627,49 @@ Recommended:
 
 The existing `legal_core` package should remain the domain layer rather than placing legal logic directly inside API routes.
 
-## 38. Frontend
+## 38. Web Application (Frontend)
+
+### 38.1 Stack
 
 Recommended:
 
-- Next.js;
-- TypeScript;
-- Tailwind CSS;
-- shadcn/ui.
+- Next.js (App Router) and TypeScript;
+- Tailwind CSS and shadcn/ui;
+- generated, typed API client from the backend OpenAPI schema;
+- Playwright for end-to-end tests.
 
-Primary interfaces:
+### 38.2 Pages and Primary Flows
 
-- AI search;
-- research results;
-- source viewer;
-- statute browser;
-- case browser;
-- document viewer;
-- research workspace.
+| Page | Purpose | MVP |
+|---|---|---|
+| Home / Ask | One input box; question in, streamed grounded answer out | Yes |
+| Answer view | Answer with inline citation markers, source panel, limitations, disclaimer | Yes |
+| Search | Keyword/semantic corpus search with filters (jurisdiction, court, document type, citation, date range) and result list | Yes |
+| Source viewer | Full chunk/section text, metadata, trust level, original source link; opened from any citation | Yes |
+| Sign in / account | Authentication, API-key-free for end users | Yes |
+| Statute browser | Hierarchical Act → Chapter → Section navigation | Phase 2 |
+| Case explorer | Case metadata, structured summary, related cases | Phase 2 |
+| History and bookmarks | Recent searches, saved answers and sources | Phase 2 |
+| Document upload and Q&A | Upload, view, ask questions with page/clause citations | Phase 3 |
+| Research workspace / memos | Matters, notes, memo generation, export | Phase 3 |
+| Admin / corpus status | Ingestion status, corpus coverage, evaluation results | Phase 2 |
+
+### 38.3 UX Requirements
+
+- The ask box is the primary entry point; an answer begins streaming within the performance targets in §44 (backed by the existing SSE endpoint).
+- Answers distinguish **source text** (quoted, from the corpus) from **AI explanation** (§4.5), visually and in markup.
+- Each citation marker is clickable and opens the source viewer at the cited section; the answer view shows which citations passed verification.
+- When no relevant source is found, the UI shows the no-source state with a link to corpus search — never an empty or invented answer.
+- The legal-information disclaimer is visible on every answer view and cannot be dismissed permanently.
+- Evidence-quality indicators (§19) are shown instead of a numeric confidence score.
+- Public Mode (§21) and Lawyer Mode (§20) are two presentations of the same pages (simplified wording vs. advanced filters and citation tools), switchable per user.
+- Accessibility: WCAG 2.1 AA target; keyboard-navigable; Urdu (RTL) rendering supported from Phase 4.
+- Responsive from 360 px width; no horizontal scroll.
+
+### 38.4 Frontend Non-Goals (initial)
+
+- No server-side storage of answers for anonymous users.
+- No browser-side holding of LLM provider keys or the backend API key. Browsers authenticate as users; the backend API key is for server-to-server integrations only (see TRD §6).
 
 ## 39. API
 
@@ -752,9 +790,9 @@ The first production-style MVP should include:
 8. No-source fallback
 9. Corpus browser
 10. Basic API
-11. Authentication
+11. Authentication (user accounts for the web app)
 12. Rate limiting
-13. Basic web interface
+13. Web application: Ask, Answer view with source panel, Search with filters, Source viewer, Sign-in (§38.2)
 14. Evaluation suite
 
 ## 46. Roadmap
@@ -823,12 +861,17 @@ The repository already includes or is working toward:
 
 Existing open roadmap work includes grounded answer generation, inline citations, no-source fallback, corpus browsing, disclaimer enforcement, authentication, rate limiting, Docker, and an evaluation harness.
 
+As of October 2026 the backend also provides: a FastAPI service with `/health`, `/api/v1/ask`, `/api/v1/ask/stream` (SSE), `/api/v1/search` (with jurisdiction/court/document-type/citation/date filters); hybrid BM25 + vector retrieval; query/intent/jurisdiction analysis; citation parsing and verification; Anthropic/OpenAI/local LLM providers; shared-secret API-key auth and per-IP rate limiting; Docker packaging; and an evaluation harness. **Not yet built:** the web frontend, user accounts/sessions, a statute/case browser, and persistent storage beyond the on-disk index.
+
+Known quality gaps (observed Oct 2026): the evaluation harness reports precision@3 and hit rate@3 of 0.000 with the default hashing embedder, and off-topic questions can still be returned as "answered" rather than the no-source fallback. These must be fixed before the web UI is presented as a research tool (see §48 item 0).
+
 These components should be retained and extended rather than rebuilt.
 
 ## 48. Immediate Engineering Priorities
 
 Recommended implementation order:
 
+0. Fix the retrieval-quality and no-source-fallback gaps noted in §47 (use a real embedder by default for the web deployment; add a relevance gate that works with it).
 1. Finish existing retrieval-quality tests.
 2. Implement provider-independent grounded answer generation.
 3. Add citation objects to API responses.
@@ -837,7 +880,7 @@ Recommended implementation order:
 6. Create FastAPI endpoints.
 7. Create corpus search endpoint.
 8. Add authentication and rate limits.
-9. Create the initial web UI.
+9. Create the initial web UI (Ask, Answer view, Search, Source viewer, Sign-in — §38.2) and the user-auth/session layer it needs (TRD §6).
 10. Add hybrid lexical + vector search.
 11. Improve legal-aware metadata.
 12. Introduce real public-source ingestion adapters.
