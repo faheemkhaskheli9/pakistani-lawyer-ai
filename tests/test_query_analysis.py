@@ -15,6 +15,13 @@ def test_detects_supported_pakistani_jurisdictions():
     assert detect_jurisdiction("Federal Constitution of Pakistan") == "Federal"
 
 
+def test_short_abbreviations_do_not_false_positive():
+    assert detect_jurisdiction("what does kp stand for in this clause") is None
+    assert detect_jurisdiction("ict sector contracts") is None
+    assert detect_jurisdiction("KP tenancy law") == "Khyber Pakhtunkhwa"
+    assert detect_jurisdiction("kpk rules") == "Khyber Pakhtunkhwa"
+
+
 def test_multiple_jurisdictions_are_left_unspecified():
     assert detect_jurisdiction("Compare Punjab and Sindh tenancy law") is None
 

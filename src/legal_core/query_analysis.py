@@ -16,12 +16,14 @@ INTENTS = {
     "research_request",
 }
 
+# Ambiguous short abbreviations (KP, ICT) match upper-case only so lower-case
+# words and typos are not mistaken for a jurisdiction; "kpk" is distinctive.
 _JURISDICTION_PATTERNS = (
     ("Punjab", re.compile(r"\bpunjab\b", re.I)),
     ("Sindh", re.compile(r"\bsindh\b", re.I)),
-    ("Khyber Pakhtunkhwa", re.compile(r"\b(?:khyber pakhtunkhwa|kpk|kp)\b", re.I)),
+    ("Khyber Pakhtunkhwa", re.compile(r"\b(?:khyber pakhtunkhwa|kpk|(?-i:KP))\b", re.I)),
     ("Balochistan", re.compile(r"\b(?:balochistan|baluchistan)\b", re.I)),
-    ("Islamabad Capital Territory", re.compile(r"\b(?:islamabad|ict)\b", re.I)),
+    ("Islamabad Capital Territory", re.compile(r"\b(?:islamabad|(?-i:ICT))\b", re.I)),
     ("Federal", re.compile(r"\b(?:federal|pakistan-wide|national law|constitution of pakistan)\b", re.I)),
 )
 
