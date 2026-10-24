@@ -125,3 +125,14 @@ def test_ask_stream_emits_status_deltas_citations_and_done():
 def test_ask_stream_requires_api_key():
     response = client().post("/api/v1/ask/stream", json={"question": "x"})
     assert response.status_code == 401
+
+
+def test_web_ui_served_with_disclaimer_rtl_and_safe_rendering():
+    client = TestClient(create_app(qa_service=QAService(), search_service=SearchService(), api_key=TEST_API_KEY))
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    html = response.text
+    assert "not legal advice" in html
+    assert "dir" in html and "rtl" in html
+    assert "innerHTML" not in html  # model/corpus text must be rendered as text
