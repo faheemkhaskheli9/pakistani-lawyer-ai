@@ -5,6 +5,14 @@ import re
 from dataclasses import dataclass
 
 from .citation_parser import contains_supported_citation
+from .language import (
+    LANG_ENGLISH,
+    LANG_ROMAN_URDU,
+    LANG_URDU,
+    detect_language,
+    expand_roman_urdu,
+    normalize_urdu,
+)
 
 INTENTS = {
     "statute_lookup",
@@ -32,6 +40,7 @@ class QueryAnalysis:
     intent: str
     jurisdiction: str | None
     normalized_query: str
+    language: str = LANG_ENGLISH
 
 
 def detect_jurisdiction(query: str) -> str | None:
@@ -128,8 +137,14 @@ def analyze_query(query: str) -> QueryAnalysis:
     if not query or not query.strip():
         raise ValueError("query must not be blank")
     normalized = " ".join(query.strip().split())
+    language = detect_language(normalized)
+    if language == LANG_URDU:
+        normalized = normalize_urdu(normalized)
+    elif language == LANG_ROMAN_URDU:
+        normalized = expand_roman_urdu(normalized)
     return QueryAnalysis(
         intent=classify_intent(normalized),
         jurisdiction=detect_jurisdiction(normalized),
         normalized_query=normalized,
+        language=language,
     )
