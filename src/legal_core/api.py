@@ -1,10 +1,12 @@
 """FastAPI application exposing the legal research services."""
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .corpus_search import CorpusSearchService
@@ -23,6 +25,31 @@ from .service import QuestionAnsweringService
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=5000)
+
+
+STREAM_CHUNK_WORDS = 8
+
+
+def _sse(event: str, data: Any) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _stream_events(result):
+    """Yield SSE frames for a finished QA result.
+
+    The answer is only streamed after citation verification has passed, so
+    unverified model output is never sent to the client.
+    """
+    payload = asdict(result)
+    answer = payload.get("answer")
+    yield _sse("status", {"status": payload["status"], "message": payload["message"]})
+    if answer:
+        words = answer["answer"].split(" ")
+        for i in range(0, len(words), STREAM_CHUNK_WORDS):
+            text = " ".join(words[i : i + STREAM_CHUNK_WORDS])
+            yield _sse("delta", {"text": text if i == 0 else " " + text})
+        yield _sse("citations", {"citations": answer["citations"]})
+    yield _sse("done", {"status": payload["status"], "disclaimer": payload["disclaimer"]})
 
 
 def _default_services():
@@ -80,6 +107,26 @@ def create_app(
         except GenerationError as exc:
             raise HTTPException(status_code=502, detail="Answer generation failed") from exc
         return asdict(result)
+
+    @app.post("/api/v1/ask/stream")
+    def ask_stream(
+        payload: AskRequest,
+        request: Request,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        """Server-Sent Events variant of ``/ask`` (verified answers only)."""
+        guard(request, x_api_key)
+        try:
+            result = qa_service.ask(payload.question)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except GenerationError as exc:
+            raise HTTPException(status_code=502, detail="Answer generation failed") from exc
+        return StreamingResponse(
+            _stream_events(result),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @app.get("/api/v1/search")
     def search(
