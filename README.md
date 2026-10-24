@@ -167,8 +167,27 @@ set, and manual citation-accuracy spot checks.
 
 ## 11. Results
 
-_To be filled in as the implementation progresses — screenshots, metrics
-tables, and sample outputs go here._
+Screenshots below were captured from a live run against the seed corpus
+(hashing embedder, local extractive LLM, no API keys). The project has no web
+UI yet, so the API is shown through its auto-generated Swagger UI (`/docs`)
+and the CLI features through terminal output.
+
+| Feature | Screenshot |
+|---|---|
+| API overview (all endpoints, OpenAPI `/docs`) | ![API overview](docs/screenshots/01-api-overview.png) |
+| Health check `GET /health` | ![Health](docs/screenshots/02-health.png) |
+| Citation-grounded answer `POST /api/v1/ask` | ![Ask](docs/screenshots/03-ask-grounded-answer.png) |
+| Streaming answer (SSE) `POST /api/v1/ask/stream` | ![Stream](docs/screenshots/04-ask-stream-sse.png) |
+| Raw SSE frames (`status`, `delta`, `citations`, `done`) | ![SSE](docs/screenshots/09-sse-raw-stream.png) |
+| API-key auth rejection (401) | ![401](docs/screenshots/05-auth-rejected-401.png) |
+| Corpus search with filters `GET /api/v1/search` | ![Search](docs/screenshots/06-corpus-search-filters.png) |
+| CLI: ingestion + top-k retrieval | ![CLI](docs/screenshots/07-cli-ingest-and-retrieval.png) |
+| CLI: evaluation harness | ![Eval](docs/screenshots/08-cli-evaluation.png) |
+
+**Known gaps visible in these runs:** the evaluation harness currently reports
+precision@3 and hit rate@3 of 0.000 with the default hashing embedder, and an
+off-topic question still returns an "answered" result instead of the
+"no relevant source found" fallback. These are shown as-is, not hidden.
 
 ## 12. API
 
