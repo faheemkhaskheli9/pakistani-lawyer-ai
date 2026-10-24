@@ -1,6 +1,8 @@
 """API integration tests for health, Q&A and direct corpus search."""
 from __future__ import annotations
 
+import json
+
 from fastapi.testclient import TestClient
 
 from legal_core.api import create_app
@@ -93,3 +95,33 @@ def test_search_endpoint_works_with_api_key_and_no_llm():
     )
     assert response.status_code == 200
     assert response.json()["results"][0]["source_path"] == "data/corpus/sample.txt"
+
+
+def _parse_sse(text):
+    events = []
+    for frame in text.strip().split("\n\n"):
+        lines = frame.split("\n")
+        events.append((lines[0][len("event: "):], json.loads(lines[1][len("data: "):])))
+    return events
+
+
+def test_ask_stream_emits_status_deltas_citations_and_done():
+    response = client().post(
+        "/api/v1/ask/stream",
+        json={"question": "What does the source say?"},
+        headers={"X-API-Key": TEST_API_KEY},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    events = _parse_sse(response.text)
+    names = [name for name, _ in events]
+    assert names[0] == "status" and names[-1] == "done"
+    assert "".join(d["text"] for n, d in events if n == "delta") == "Grounded response."
+    citations = dict(events)["citations"]["citations"]
+    assert citations[0]["citation"] == "sample.txt, Section 1"
+    assert dict(events)["done"]["disclaimer"] == LEGAL_INFORMATION_DISCLAIMER
+
+
+def test_ask_stream_requires_api_key():
+    response = client().post("/api/v1/ask/stream", json={"question": "x"})
+    assert response.status_code == 401
