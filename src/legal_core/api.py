@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .corpus_search import CorpusSearchService
@@ -28,6 +29,7 @@ class AskRequest(BaseModel):
 
 
 STREAM_CHUNK_WORDS = 8
+WEB_UI_PATH = Path(__file__).parent / "web" / "index.html"
 
 
 def _sse(event: str, data: Any) -> str:
@@ -78,6 +80,11 @@ def create_app(
         version="0.1.0",
         description="Citation-grounded legal information and corpus search API.",
     )
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def web_ui():
+        """Minimal web UI; it calls the API with a user-supplied key."""
+        return HTMLResponse(WEB_UI_PATH.read_text(encoding="utf-8"))
 
     @app.get("/health")
     def health():

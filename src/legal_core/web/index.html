@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pakistani Lawyer AI</title>
+<style>
+  :root { --bg:#f7f7f5; --fg:#1b1f23; --card:#fff; --accent:#0b6b3a; --muted:#5b636b; --border:#d9dcd8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121513; --fg:#e8ebe9; --card:#1b1f1c; --accent:#4cc38a; --muted:#9aa39d; --border:#333a35; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Nastaliq Urdu",sans-serif; background:var(--bg); color:var(--fg); }
+  main { max-width:760px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.3rem; margin:0 0 8px; }
+  .disclaimer { background:var(--card); border:1px solid var(--accent); border-radius:8px; padding:10px 12px; font-size:.9rem; margin-bottom:12px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  input, textarea, button { font:inherit; color:inherit; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:10px; }
+  textarea { width:100%; min-height:90px; resize:vertical; }
+  input[type=password] { flex:1; min-width:160px; }
+  button { cursor:pointer; min-height:44px; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:disabled { opacity:.6; cursor:wait; }
+  .turn { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px; margin:12px 0; }
+  .q { font-weight:600; margin:0 0 6px; }
+  .status { color:var(--muted); font-size:.85rem; }
+  .cite { border-inline-start:3px solid var(--accent); padding:4px 10px; margin:8px 0; font-size:.9rem; }
+  .cite b { display:block; }
+  .cite span { color:var(--muted); }
+  .err { color:#b3261e; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pakistani Lawyer AI</h1>
+  <div class="disclaimer" id="disclaimer">
+    Legal information only, not legal advice. Answers cite retrieved sources; verify with a qualified lawyer.
+  </div>
+  <div class="bar">
+    <input type="password" id="key" placeholder="API key" autocomplete="off" aria-label="API key">
+    <button id="rtl" type="button" aria-pressed="false">RTL / اردو</button>
+    <button id="clear" type="button">Clear history</button>
+  </div>
+  <form id="form">
+    <textarea id="question" maxlength="5000" placeholder="Ask a question about Pakistani law…" aria-label="Question" required></textarea>
+    <div class="bar" style="margin-top:8px">
+      <button class="primary" id="ask" type="submit">Ask</button>
+      <button id="search" type="button">Search corpus</button>
+    </div>
+  </form>
+  <div id="log" aria-live="polite"></div>
+</main>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var HKEY = "pla_history_v1";
+  var keyEl = $("key");
+  function load(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+  function save(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+  keyEl.value = load("pla_key") || "";
+  keyEl.addEventListener("change", function () { save("pla_key", keyEl.value); });
+
+  $("rtl").addEventListener("click", function () {
+    var rtl = document.documentElement.dir !== "rtl";
+    document.documentElement.dir = rtl ? "rtl" : "ltr";
+    this.setAttribute("aria-pressed", String(rtl));
+  });
+
+  var history = [];
+  try { history = JSON.parse(load(HKEY) || "[]"); } catch (e) { history = []; }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function citeNode(c) {
+    var d = el("div", "cite");
+    d.appendChild(el("b", null, c.citation || c.source));
+    d.appendChild(el("span", null, c.excerpt || ""));
+    return d;
+  }
+  function render(turn) {
+    var box = el("div", "turn");
+    box.appendChild(el("p", "q", turn.question));
+    if (turn.error) { box.appendChild(el("p", "err", turn.error)); }
+    else if (turn.kind === "search") {
+      (turn.results || []).forEach(function (r) { box.appendChild(citeNode(r)); });
+      if (!(turn.results || []).length) box.appendChild(el("p", "status", "No matching sources."));
+    } else {
+      box.appendChild(el("p", "status", turn.message || ""));
+      if (turn.answer) box.appendChild(el("p", null, turn.answer));
+      (turn.citations || []).forEach(function (c) { box.appendChild(citeNode(c)); });
+    }
+    $("log").prepend(box);
+  }
+  history.forEach(render);
+  function push(turn) { history.push(turn); save(HKEY, JSON.stringify(history.slice(-50))); render(turn); }
+
+  $("clear").addEventListener("click", function () {
+    history = []; save(HKEY, "[]"); $("log").textContent = "";
+  });
+
+  function call(url, opts) {
+    opts.headers = Object.assign({ "X-API-Key": keyEl.value }, opts.headers || {});
+    return fetch(url, opts).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (body) {
+        if (!r.ok) throw new Error(r.status + ": " + (body.detail || r.statusText));
+        return body;
+      });
+    });
+  }
+  function busy(on) { $("ask").disabled = on; $("search").disabled = on; }
+
+  $("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var q = $("question").value.trim();
+    if (!q) return;
+    busy(true);
+    call("/api/v1/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) })
+      .then(function (r) {
+        if (r.disclaimer) $("disclaimer").textContent = r.disclaimer;
+        push({ kind: "ask", question: q, message: r.message,
+               answer: r.answer && r.answer.answer, citations: r.answer ? r.answer.citations : [] });
+      })
+      .catch(function (err) { push({ kind: "ask", question: q, error: err.message }); })
+      .then(function () { busy(false); });
+  });
+
+  $("search").addEventListener("click", function () {
+    var q = $("question").value.trim();
+    if (!q) return;
+    busy(true);
+    call("/api/v1/search?q=" + encodeURIComponent(q), { method: "GET" })
+      .then(function (r) {
+        if (r.disclaimer) $("disclaimer").textContent = r.disclaimer;
+        push({ kind: "search", question: q, results: r.results });
+      })
+      .catch(function (err) { push({ kind: "search", question: q, error: err.message }); })
+      .then(function () { busy(false); });
+  });
+})();
+</script>
+</body>
+</html>
