@@ -1,5 +1,7 @@
 # Architecture Notes: Pakistani Lawyer AI
 
+> Product is a web application. Full designs: [PRD](PRD.md), [TRD](TRD.md), [System Design](system-design.md). This file keeps the short pipeline summary.
+
 ## Pipeline
 
 ```text
@@ -15,10 +17,11 @@ User question -> Retrieve top-k chunks -> LLM answer grounded in retrieved text
 - `legal_core.ingest` — chunking + embedding, idempotent re-ingestion
   (re-running on an unchanged corpus does not duplicate vectors), per-chunk
   source citation (statute name + section, or judgment + paragraph)
-- `legal_core.retrieve` — top-k retrieval over the vector store
-- `legal_core.answer` — LLM call grounded in retrieved chunks, citation
-  rendering, "no relevant source found" fallback when retrieval is empty
-- API layer (FastAPI) — question-answering endpoint, corpus browse/search
+- `legal_core.retrieval` / `hybrid_retrieval` — top-k vector and BM25 hybrid retrieval with filters
+- `legal_core.service` / `generation` / `citation_verification` — grounded LLM answer,
+  citation verification, "no relevant source found" fallback
+- API layer (FastAPI) — `/api/v1/ask`, `/api/v1/ask/stream` (SSE), `/api/v1/search`
+- Web frontend (Next.js) — planned; consumes the API (see TRD)
 
 ## Design Notes
 
