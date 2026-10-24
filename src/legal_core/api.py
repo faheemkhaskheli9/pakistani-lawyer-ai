@@ -10,6 +10,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from .browse import CorpusBrowseService
 from .corpus_search import CorpusSearchService
 from .filters import RetrievalFilters
 from .generation import GenerationError
@@ -63,6 +64,7 @@ def create_app(
     *,
     qa_service: Any | None = None,
     search_service: Any | None = None,
+    browse_service: Any | None = None,
     api_key: str | None = None,
     qa_rate_limit: int | None = None,
     trust_proxy: bool | None = None,
@@ -72,6 +74,8 @@ def create_app(
         default_qa, default_search = _default_services()
         qa_service = qa_service or default_qa
         search_service = search_service or default_search
+
+    browse_service = browse_service or CorpusBrowseService()
 
     limiter = SlidingWindowRateLimiter(resolve_rate_limit(qa_rate_limit))
 
@@ -162,6 +166,27 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return asdict(result)
+
+    @app.get("/api/v1/corpus")
+    def corpus_list(
+        request: Request,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        """Browse the ingested documents (no retrieval, no LLM)."""
+        guard(request, x_api_key)
+        return {"documents": [asdict(d) for d in browse_service.list_documents()]}
+
+    @app.get("/api/v1/corpus/{source}")
+    def corpus_document(
+        source: str,
+        request: Request,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        guard(request, x_api_key)
+        detail = browse_service.get_document(source)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return asdict(detail)
 
     return app
 
