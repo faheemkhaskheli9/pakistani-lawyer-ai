@@ -89,3 +89,14 @@ def test_factory_from_env():
         get_llm_provider("anthropic", env={})
     with pytest.raises(ValueError):
         get_llm_provider("bogus", env={})
+
+
+def test_prompt_asks_for_reply_in_question_language():
+    from legal_core.llm import build_user_prompt
+
+    english = build_user_prompt(question="What is bail?", context="ctx")
+    assert "Write the answer in" not in english
+    urdu = build_user_prompt(question="ضمانت کیا ہے؟", context="ctx")
+    assert "Urdu (Urdu script)" in urdu and "verbatim" in urdu
+    roman = build_user_prompt(question="zamanat kya hai aur kab milti hai", context="ctx")
+    assert "Roman Urdu" in roman
