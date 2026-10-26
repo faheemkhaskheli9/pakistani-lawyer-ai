@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .browse import CorpusBrowseService
 from .corpus_search import CorpusSearchService
 from .drafting import TEMPLATES, render_draft
+from .export import export_markdown
 from .filters import RetrievalFilters
 from .generation import GenerationError
 from .hybrid_retrieval import build_hybrid_retriever
@@ -129,6 +130,26 @@ def create_app(
         except GenerationError as exc:
             raise HTTPException(status_code=502, detail="Answer generation failed") from exc
         return asdict(result)
+
+    @app.post("/api/v1/ask/export")
+    def ask_export(
+        payload: AskRequest,
+        request: Request,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        """Answer a question and return it as a downloadable Markdown note."""
+        guard(request, x_api_key)
+        try:
+            result = qa_service.ask(payload.question)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except GenerationError as exc:
+            raise HTTPException(status_code=502, detail="Answer generation failed") from exc
+        return PlainTextResponse(
+            export_markdown(result),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="research-note.md"'},
+        )
 
     @app.post("/api/v1/ask/stream")
     def ask_stream(
