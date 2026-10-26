@@ -14,6 +14,8 @@ import urllib.request
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 
+from .language import LANG_ROMAN_URDU, LANG_URDU, detect_language
+
 SYSTEM_PROMPT = (
     "You are a legal research assistant for Pakistani law. Answer ONLY from the "
     "numbered sources in the supplied context. After every legal claim cite the "
@@ -24,8 +26,26 @@ SYSTEM_PROMPT = (
 )
 
 
+_LANGUAGE_INSTRUCTIONS = {
+    LANG_URDU: "Write the answer in Urdu (Urdu script).",
+    LANG_ROMAN_URDU: "Write the answer in Roman Urdu (Urdu in Latin script).",
+}
+_ORIGINAL_TEXT_RULE = (
+    "Keep source labels exactly as given and quote statutory or judgment text "
+    "verbatim in its original language; never translate or alter a quotation."
+)
+
+
+def language_instruction(question: str) -> str:
+    """Reply-language rule for the question's detected language ('' for English)."""
+    note = _LANGUAGE_INSTRUCTIONS.get(detect_language(question))
+    return f"{note} {_ORIGINAL_TEXT_RULE}" if note else ""
+
+
 def build_user_prompt(*, question: str, context: str) -> str:
-    return f"Sources:\n{context}\n\nQuestion: {question}\n\nAnswer with citations:"
+    instruction = language_instruction(question)
+    suffix = f"\n\n{instruction}" if instruction else ""
+    return f"Sources:\n{context}\n\nQuestion: {question}{suffix}\n\nAnswer with citations:"
 
 
 class LLMProviderError(RuntimeError):
