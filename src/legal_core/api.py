@@ -268,10 +268,16 @@ def create_app(
         payload: SummaryRequest,
         x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     ):
-        """Extractive summary of pasted/uploaded document text with source offsets."""
+        """Extractive summary of pasted/uploaded document text with source offsets;
+        reported-case citations found in it are checked against the corpus."""
         guard(request, x_api_key)
         try:
-            return asdict(summarize_document(payload.text, max_points=payload.max_points))
+            summary = summarize_document(payload.text, max_points=payload.max_points)
+            body = asdict(summary)
+            body["citation_checks"] = [
+                asdict(citation_verifier.verify(c)) for c in summary.case_citations
+            ]
+            return body
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
