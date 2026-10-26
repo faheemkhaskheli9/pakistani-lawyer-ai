@@ -14,6 +14,9 @@ dependencies = [
     "uvicorn>=0.30",
 ]
 
+[project.scripts]
+legal-mcp = "legal_core.mcp_server:main"
+
 [project.optional-dependencies]
 # Only needed for EMBEDDING_PROVIDER=sentence-transformers; the default
 # "hashing" provider needs neither this nor a model download.
