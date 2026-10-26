@@ -10,6 +10,7 @@ from pathlib import Path
 from .generation import AnswerGenerator
 from .ingest import run_ingestion
 from .qa import answer_from_chunks
+from .query_analysis import analyze_query
 from .retrieval import Retriever, build_retriever
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -67,6 +68,7 @@ def evaluate_retrieval(
     *,
     top_k: int = 3,
     citation_sample_size: int = 3,
+    analyze: bool = False,
 ) -> EvaluationReport:
     if top_k <= 0:
         raise ValueError("top_k must be positive")
@@ -76,8 +78,9 @@ def evaluate_retrieval(
     generator = AnswerGenerator()
 
     for case in cases:
-        chunks = retriever.retrieve(case.query, top_k=top_k)
-        sources = tuple(chunk.source for chunk in chunks)
+        query = analyze_query(case.query).normalized_query if analyze else case.query
+        chunks = retriever.retrieve(query, top_k=top_k)
+        sources = tuple(Path(chunk.source or "").name for chunk in chunks)
         relevant = sum(source == case.expected_source for source in sources)
         precision = relevant / top_k
         hit = relevant > 0
@@ -165,6 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cases", default=str(DEFAULT_CASES))
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--citation-samples", type=int, default=3)
+    parser.add_argument("--analyze", action="store_true", help="apply query analysis (Urdu/Roman-Urdu) before retrieval")
     parser.add_argument("--write-docs", action="store_true")
     args = parser.parse_args(argv)
 
@@ -179,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
         load_cases(args.cases),
         top_k=args.top_k,
         citation_sample_size=max(0, args.citation_samples),
+        analyze=args.analyze,
     )
     print(render_report(report))
     if args.write_docs:
