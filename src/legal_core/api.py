@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from .browse import CorpusBrowseService
 from .corpus_search import CorpusSearchService
+from .doc_summary import MAX_CHARS, summarize_document
 from .drafting import TEMPLATES, render_draft
 from .export import export_markdown
 from .filters import RetrievalFilters
@@ -58,6 +59,11 @@ def _stream_events(result):
             yield _sse("delta", {"text": text if i == 0 else " " + text})
         yield _sse("citations", {"citations": answer["citations"]})
     yield _sse("done", {"status": payload["status"], "disclaimer": payload["disclaimer"]})
+
+
+class SummaryRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_CHARS)
+    max_points: int = Field(default=5, ge=1, le=15)
 
 
 class DraftRequest(BaseModel):
@@ -255,6 +261,19 @@ def create_app(
     ):
         guard(request, x_api_key)
         return {"rules": [asdict(r) for r in RULES.values()]}
+
+    @app.post("/api/v1/documents/summary")
+    def document_summary(
+        request: Request,
+        payload: SummaryRequest,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        """Extractive summary of pasted/uploaded document text with source offsets."""
+        guard(request, x_api_key)
+        try:
+            return asdict(summarize_document(payload.text, max_points=payload.max_points))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/v1/drafts/templates")
     def draft_templates(
