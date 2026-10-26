@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ from .corpus_search import CorpusSearchService
 from .filters import RetrievalFilters
 from .generation import GenerationError
 from .hybrid_retrieval import build_hybrid_retriever
+from .limitation import RULES, calculate_limitation
 from .security import (
     SlidingWindowRateLimiter,
     api_key_matches,
@@ -187,6 +189,29 @@ def create_app(
         if detail is None:
             raise HTTPException(status_code=404, detail="Document not found")
         return asdict(detail)
+
+    @app.get("/api/v1/limitation")
+    def limitation(
+        request: Request,
+        kind: str = Query(...),
+        start: date = Query(..., description="Date the cause of action accrued (YYYY-MM-DD)"),
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        """Limitation-period calculator for selected Limitation Act, 1908 articles."""
+        guard(request, x_api_key)
+        try:
+            result = calculate_limitation(kind, start)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return asdict(result)
+
+    @app.get("/api/v1/limitation/rules")
+    def limitation_rules(
+        request: Request,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        guard(request, x_api_key)
+        return {"rules": [asdict(r) for r in RULES.values()]}
 
     return app
 
