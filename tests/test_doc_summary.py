@@ -43,3 +43,15 @@ def test_endpoint():
     r = c.post("/api/v1/documents/summary", json={"text": FIR}, headers={"X-API-Key": "k"})
     assert r.status_code == 200 and r.json()["kind"] == "fir" and r.json()["disclaimer"]
     assert c.post("/api/v1/documents/summary", json={"text": "  "}, headers={"X-API-Key": "k"}).status_code == 400
+
+
+def test_endpoint_verifies_extracted_case_citations():
+    class V:
+        def verify(self, c):
+            from legal_core.verify_tool import CitationVerification
+            return CitationVerification(c, "reported_case", True, False, c, (), "n")
+
+    c = TestClient(create_app(qa_service=object(), search_service=object(), citation_verifier=V(), api_key="k"))
+    body = c.post("/api/v1/documents/summary", json={"text": FIR}, headers={"X-API-Key": "k"}).json()
+    assert len(body["citation_checks"]) == len(body["case_citations"]) >= 1
+    assert body["citation_checks"][0]["found_in_corpus"] is False
