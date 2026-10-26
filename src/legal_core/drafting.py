@@ -112,6 +112,80 @@ TEMPLATES: dict[str, DraftTemplate] = {
                 "{advocate_name}\nCounsel for the Applicant"
             ),
         ),
+        DraftTemplate(
+            key="plaint",
+            title="Plaint (civil suit)",
+            description="Skeleton plaint containing the particulars required by CPC, 1908, Order VII rule 1.",
+            fields=(
+                "court", "plaintiff_name", "plaintiff_address", "defendant_name",
+                "defendant_address", "facts", "cause_of_action", "jurisdiction",
+                "valuation", "relief", "advocate_name",
+            ),
+            body=(
+                "IN THE COURT OF {court}\n\n"
+                "{plaintiff_name}, {plaintiff_address} ... Plaintiff\n"
+                "VERSUS\n"
+                "{defendant_name}, {defendant_address} ... Defendant\n\n"
+                "SUIT (Order VII, Rule 1, CPC)\n\n"
+                "Respectfully Sheweth:\n\n"
+                "1. That the facts giving rise to this suit are: {facts}.\n"
+                "2. That the cause of action accrued on {cause_of_action}.\n"
+                "3. That this Court has jurisdiction because {jurisdiction}.\n"
+                "4. That the suit is valued for the purposes of jurisdiction and court fee at {valuation}.\n"
+                "5. That no other suit between the parties on the same subject matter is pending.\n\n"
+                "PRAYER: It is respectfully prayed that a decree be passed in favour of the "
+                "plaintiff and against the defendant as follows: {relief}, together with "
+                "costs and any other relief the Court deems fit.\n\n"
+                "{advocate_name}\nCounsel for the Plaintiff\n\n"
+                "VERIFICATION: Verified at ____________ on this ____ day of __________ that "
+                "the contents of the above plaint are true and correct to the best of my "
+                "knowledge and belief."
+            ),
+        ),
+        DraftTemplate(
+            key="written_statement",
+            title="Written statement (civil suit)",
+            description="Skeleton defence reply to a plaint (CPC, 1908, Order VIII).",
+            fields=(
+                "court", "suit_number", "defendant_name", "plaintiff_name",
+                "preliminary_objections", "reply_on_merits", "advocate_name",
+            ),
+            body=(
+                "IN THE COURT OF {court}\n\n"
+                "Suit No. {suit_number}\n"
+                "{plaintiff_name} ... Plaintiff\nVERSUS\n{defendant_name} ... Defendant\n\n"
+                "WRITTEN STATEMENT ON BEHALF OF THE DEFENDANT (Order VIII, CPC)\n\n"
+                "PRELIMINARY OBJECTIONS:\n{preliminary_objections}\n\n"
+                "REPLY ON MERITS:\n{reply_on_merits}\n\n"
+                "Any averment of the plaint not specifically admitted above is denied.\n\n"
+                "PRAYER: It is respectfully prayed that the suit may kindly be dismissed "
+                "with costs.\n\n"
+                "{advocate_name}\nCounsel for the Defendant"
+            ),
+        ),
+        DraftTemplate(
+            key="writ_petition",
+            title="Constitutional petition (writ)",
+            description="Skeleton petition to a High Court under Article 199 of the Constitution of Pakistan, 1973.",
+            fields=(
+                "high_court", "petitioner_name", "respondents", "facts",
+                "impugned_action", "grounds", "relief", "advocate_name",
+            ),
+            body=(
+                "IN THE {high_court}\n\n"
+                "Writ Petition No. ______ of ______\n"
+                "{petitioner_name} ... Petitioner\nVERSUS\n{respondents} ... Respondents\n\n"
+                "PETITION UNDER ARTICLE 199 OF THE CONSTITUTION OF THE ISLAMIC REPUBLIC OF PAKISTAN, 1973\n\n"
+                "Respectfully Sheweth:\n\n"
+                "1. FACTS: {facts}.\n"
+                "2. IMPUGNED ACTION/ORDER: {impugned_action}.\n"
+                "3. That the petitioner has no other adequate remedy available in law.\n"
+                "4. GROUNDS: {grounds}.\n\n"
+                "PRAYER: It is respectfully prayed that this Honourable Court may be pleased "
+                "to: {relief}, and grant any other relief deemed just and proper.\n\n"
+                "{advocate_name}\nCounsel for the Petitioner"
+            ),
+        ),
     )
 }
 
