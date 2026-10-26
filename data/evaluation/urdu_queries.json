@@ -1,0 +1,67 @@
+[
+  {
+    "query": "ikrarnama karne ki ahliyat kis mein hoti hai",
+    "expected_source": "sample_civil_code.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "muahida todne par nuksan ka daawa kaise hota hai",
+    "expected_source": "sample_civil_code.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "dhoka ya dabao se muahida mein razamandi kab azad nahin hoti",
+    "expected_source": "sample_civil_code.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "fir kaise darj ki jati hai",
+    "expected_source": "sample_criminal_procedure.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "ghair qabil dast andazi jurm mein zamanat kab milti hai",
+    "expected_source": "sample_criminal_procedure.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "fair trial ka haq kya hai",
+    "expected_source": "sample_criminal_procedure.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "saboot ka bojh kis par hota hai",
+    "expected_source": "sample_evidence_act.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "dying declaration ya maut se pehle bayan adalat mein kab maan'ya hai",
+    "expected_source": "sample_evidence_act.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "iqbal-e-jurm ya admission kab shahadat ban sakti hai",
+    "expected_source": "sample_evidence_act.txt",
+    "language": "roman_urdu"
+  },
+  {
+    "query": "معاہدہ کرنے کی اہلیت کس میں ہوتی ہے",
+    "expected_source": "sample_civil_code.txt",
+    "language": "urdu"
+  },
+  {
+    "query": "ایف آئی آر کیسے درج کی جاتی ہے",
+    "expected_source": "sample_criminal_procedure.txt",
+    "language": "urdu"
+  },
+  {
+    "query": "ضمانت کب ملتی ہے",
+    "expected_source": "sample_criminal_procedure.txt",
+    "language": "urdu"
+  },
+  {
+    "query": "ثبوت کا بوجھ کس پر ہوتا ہے",
+    "expected_source": "sample_evidence_act.txt",
+    "language": "urdu"
+  }
+]
