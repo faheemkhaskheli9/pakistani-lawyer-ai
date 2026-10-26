@@ -48,3 +48,10 @@ def test_api():
     r = c.post("/api/v1/drafts", json={"template": "legal_notice_recovery", "values": {"amount": "Rs. 500,000"}}, headers=KEY)
     assert r.status_code == 200 and "Rs. 500,000" in r.json()["text"] and r.json()["disclaimer"]
     assert c.post("/api/v1/drafts", json={"template": "zzz"}, headers=KEY).status_code == 400
+
+
+def test_court_templates_present_and_fill():
+    for key, needle in (("plaint", "Order VII"), ("written_statement", "Order VIII"), ("writ_petition", "ARTICLE 199")):
+        t = TEMPLATES[key]
+        d = render_draft(key, {f: f"<{f}>" for f in t.fields})
+        assert needle in d.text and d.missing_fields == () and "[[" not in d.text
