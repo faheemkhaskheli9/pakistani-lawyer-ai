@@ -25,6 +25,7 @@ from .security import (
     resolve_rate_limit,
 )
 from .service import QuestionAnsweringService
+from .verify_tool import CitationVerifier
 
 
 class AskRequest(BaseModel):
@@ -67,6 +68,7 @@ def create_app(
     qa_service: Any | None = None,
     search_service: Any | None = None,
     browse_service: Any | None = None,
+    citation_verifier: Any | None = None,
     api_key: str | None = None,
     qa_rate_limit: int | None = None,
     trust_proxy: bool | None = None,
@@ -78,6 +80,7 @@ def create_app(
         search_service = search_service or default_search
 
     browse_service = browse_service or CorpusBrowseService()
+    citation_verifier = citation_verifier or CitationVerifier()
 
     limiter = SlidingWindowRateLimiter(resolve_rate_limit(qa_rate_limit))
 
@@ -189,6 +192,19 @@ def create_app(
         if detail is None:
             raise HTTPException(status_code=404, detail="Document not found")
         return asdict(detail)
+
+    @app.get("/api/v1/verify-citation")
+    def verify_citation(
+        request: Request,
+        citation: str = Query(..., min_length=1, max_length=200),
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        """Check a citation's format and whether it appears in the loaded corpus."""
+        guard(request, x_api_key)
+        try:
+            return asdict(citation_verifier.verify(citation))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/v1/limitation")
     def limitation(
