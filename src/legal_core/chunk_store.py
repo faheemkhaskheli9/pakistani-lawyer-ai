@@ -11,6 +11,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List
 
+from .filelock import exclusive_lock
+
 
 @dataclass
 class ChunkRecord:
@@ -30,6 +32,9 @@ class ChunkStore:
         self.path = Path(path)
         self._records: Dict[str, ChunkRecord] = {}
         self._load()
+
+    def _lock_path(self) -> Path:
+        return self.path.with_suffix(self.path.suffix + ".lock")
 
     def _load(self) -> None:
         if not self.path.exists():
@@ -52,9 +57,14 @@ class ChunkStore:
             raise
 
     def upsert(self, records: List[ChunkRecord]) -> None:
-        for record in records:
-            self._records[record.id] = record
-        self._save()
+        # Re-read under the lock so concurrent writers merge instead of
+        # overwriting each other's records with a stale in-memory snapshot.
+        with exclusive_lock(self._lock_path()):
+            self._records = {}
+            self._load()
+            for record in records:
+                self._records[record.id] = record
+            self._save()
 
     def __len__(self) -> int:
         return len(self._records)
