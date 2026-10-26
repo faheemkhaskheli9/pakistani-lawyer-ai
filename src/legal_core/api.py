@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from .browse import CorpusBrowseService
 from .corpus_search import CorpusSearchService
+from .drafting import TEMPLATES, render_draft
 from .filters import RetrievalFilters
 from .generation import GenerationError
 from .hybrid_retrieval import build_hybrid_retriever
@@ -56,6 +57,11 @@ def _stream_events(result):
             yield _sse("delta", {"text": text if i == 0 else " " + text})
         yield _sse("citations", {"citations": answer["citations"]})
     yield _sse("done", {"status": payload["status"], "disclaimer": payload["disclaimer"]})
+
+
+class DraftRequest(BaseModel):
+    template: str = Field(..., max_length=64)
+    values: dict[str, str] = Field(default_factory=dict)
 
 
 def _default_services():
@@ -228,6 +234,29 @@ def create_app(
     ):
         guard(request, x_api_key)
         return {"rules": [asdict(r) for r in RULES.values()]}
+
+    @app.get("/api/v1/drafts/templates")
+    def draft_templates(
+        request: Request,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        guard(request, x_api_key)
+        return {"templates": [asdict(t) | {"body": None} for t in TEMPLATES.values()]}
+
+    @app.post("/api/v1/drafts")
+    def create_draft(
+        request: Request,
+        payload: DraftRequest,
+        x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    ):
+        """Fill a drafting template; missing fields stay marked as [[FIELD]]."""
+        guard(request, x_api_key)
+        if sum(len(v) for v in payload.values.values()) > 20000:
+            raise HTTPException(status_code=413, detail="Values too large")
+        try:
+            return asdict(render_draft(payload.template, payload.values))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return app
 
