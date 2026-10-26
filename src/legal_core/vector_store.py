@@ -25,6 +25,8 @@ from typing import Any
 
 import numpy as np
 
+from .filelock import exclusive_lock
+
 
 class DimensionMismatch(ValueError):
     """Raised when an upserted embedding's length doesn't match the store's
@@ -56,13 +58,26 @@ class VectorStore:
         self._documents: dict[str, str] = {}
         self._metadata: dict[str, dict[str, Any]] = {}
         self.dimension: int | None = None
-        self._load()
+        if self._meta_path().exists():
+            # Lock so we never read the vectors/metadata pair mid-replace.
+            with exclusive_lock(self._lock_path()):
+                self._load()
 
     def _vectors_path(self) -> Path:
         return self.path.with_suffix(self.path.suffix + ".npz")
 
     def _meta_path(self) -> Path:
         return self.path.with_suffix(self.path.suffix + ".json")
+
+    def _lock_path(self) -> Path:
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _reset(self) -> None:
+        self._ids = []
+        self._vectors = None
+        self._documents = {}
+        self._metadata = {}
+        self.dimension = None
 
     def _load(self) -> None:
         vec_path, meta_path = self._vectors_path(), self._meta_path()
@@ -134,6 +149,14 @@ class VectorStore:
         ]
 
     def upsert(self, id_: str, embedding: list[float], document: str, metadata: dict[str, Any] | None = None) -> None:
+        # Re-read under the lock so concurrent writers merge instead of
+        # overwriting each other's rows with a stale in-memory snapshot.
+        with exclusive_lock(self._lock_path()):
+            self._reset()
+            self._load()
+            self._upsert_locked(id_, embedding, document, metadata)
+
+    def _upsert_locked(self, id_: str, embedding: list[float], document: str, metadata: dict[str, Any] | None) -> None:
         if self.dimension is None:
             self.dimension = len(embedding)
         elif len(embedding) != self.dimension:
