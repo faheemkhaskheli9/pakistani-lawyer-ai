@@ -1,12 +1,50 @@
 # Pakistani Lawyer AI
 
-> Legal AI / Document-AI portfolio project — independent open-source implementation.
-> This is an original, from-scratch build. It is not affiliated with, and does not
-> contain any code, prompts, data, or business logic from, any employer or client.
+**Ask questions about Pakistani law in plain language and get answers that cite the exact section they came from.**
+Runs fully offline with no API key: local embeddings, a local vector store and a FastAPI backend.
 
-![status](https://img.shields.io/badge/status-in%20progress-yellow)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
+![status](https://img.shields.io/badge/status-early%20stage-yellow)
+![no API key](https://img.shields.io/badge/API%20key-not%20needed-brightgreen)
+
+![Citation-grounded answer](docs/screenshots/03-ask-grounded-answer.png)
+
+> Legal information only, not legal advice. Every answer shows a disclaimer and its sources.
+
+## Quick start (2 minutes)
+
+```bash
+git clone https://github.com/faheemkhaskheli9/pakistani-lawyer-ai.git
+cd pakistani-lawyer-ai
+pip install -r requirements.txt && pip install -e .
+
+python -m legal_core.ingest --corpus data/corpus                    # build the index
+python -m legal_core.retrieval "admissibility of evidence" --top-k 3  # search it
+```
+
+Run the API and open http://localhost:8000/docs:
+
+```bash
+export PAKISTANI_LAWYER_API_KEY="choose-a-long-random-secret"
+uvicorn legal_core.api:app --reload
+```
+
+## Features
+
+- Citation-grounded answers (`POST /api/v1/ask`), with streaming over SSE
+- Corpus search with filters, no LLM needed (`GET /api/v1/search`)
+- Hybrid retrieval, citation parsing and verification (`GET /api/v1/verify-citation`)
+- Limitation-period calculator, document summaries and legal draft templates
+- Export answers to a file (`POST /api/v1/ask/export`)
+- MCP server so AI assistants can query the corpus ([docs/mcp-server.md](docs/mcp-server.md))
+- Evaluation harness with English and Urdu query sets
+- Docker, CI and API-key auth included
+
+⭐ **If this project is useful to you, please star the repo.** It helps others find it.
+
+**Contributions welcome:** real public-domain statutes, Urdu support and better retrieval are the most wanted.
+See the open [issues](https://github.com/faheemkhaskheli9/pakistani-lawyer-ai/issues).
 
 ## 1. Problem
 
@@ -75,13 +113,6 @@ loop and renders citations next to each answer.
 5. Phase 5: Docker/compose, CI, docs, evaluation harness (retrieval
    precision@k + citation-accuracy spot checks)
 
-## Task Tracking
-
-Work will be broken into phase-tagged user stories tracked as GitHub Issues,
-not in this file. Implement Phase 1 issues first (later phases depend on it).
-When you start one, add label `status:in-progress`. When you finish, close it
-referencing the commit (e.g. `git commit -m "... Closes #4"`) and push.
-
 ## 6. Repository Structure
 
 ```text
@@ -109,7 +140,7 @@ pakistani-lawyer-ai/
 ## 7. Setup
 
 ```bash
-git clone <this-repo-url>
+git clone https://github.com/faheemkhaskheli9/pakistani-lawyer-ai.git
 cd pakistani-lawyer-ai
 python -m venv .venv && source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt   # or: pip install -e .
@@ -191,8 +222,8 @@ off-topic question still returns an "answered" result instead of the
 
 ## 12. API
 
-_Once Phase 3 lands: document the QA endpoint here (or link to
-auto-generated OpenAPI docs at `/docs`)._
+Interactive OpenAPI docs are served at `/docs` when the API is running.
+Main endpoints: `POST /api/v1/ask`, `POST /api/v1/ask/stream`, `GET /api/v1/search`, `GET /health`.
 
 ## 13. Docker
 
