@@ -49,7 +49,7 @@ class Provider(LLMProvider):
 
 
 class Retriever:
-    def retrieve(self, query):
+    def retrieve(self, query, *, filters=None):
         return [
             RetrievedChunk(
                 rank=1,

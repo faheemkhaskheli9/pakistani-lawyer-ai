@@ -74,14 +74,14 @@ def test_federal_query_does_not_query_province_fallback():
     assert retriever.calls == ["Federal"]
 
 
-def test_empty_jurisdiction_results_fall_back_to_unfiltered_search():
+def test_empty_jurisdiction_results_do_not_fall_back_to_other_provinces():
     retriever = FilterAwareRetriever(
         {None: [chunk("broad", 0.85, "Unknown")]}
     )
     result = make_service(retriever).ask("Sindh section 12")
-    assert result.status == "answered"
-    assert retriever.calls == ["Sindh", "Federal", None]
-    assert result.answer.citations[0].chunk_id == "broad"
+    assert result.status == "no_relevant_source"
+    assert retriever.calls == ["Sindh", "Federal"]
+    assert result.answer is None
 
 
 def test_ambiguous_multi_jurisdiction_query_uses_unfiltered_search():
@@ -93,8 +93,8 @@ def test_ambiguous_multi_jurisdiction_query_uses_unfiltered_search():
     assert retriever.calls == [None]
 
 
-def test_legacy_retriever_without_filters_remains_supported():
+def test_legacy_retriever_without_filters_fails_closed_for_province():
     retriever = LegacyRetriever()
     result = make_service(retriever).ask("Punjab section 5")
-    assert result.status == "answered"
-    assert retriever.calls == 1
+    assert result.status == "no_relevant_source"
+    assert retriever.calls == 0

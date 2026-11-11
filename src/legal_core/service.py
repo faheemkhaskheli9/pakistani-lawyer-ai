@@ -133,14 +133,11 @@ class QuestionAnsweringService:
                     )
                 )
         except TypeError:
-            # Backward compatibility for simple/custom retrievers that do not
-            # yet expose the metadata-filter keyword.
-            return self.retriever.retrieve(analysis.normalized_query)
+            # An unfiltered fallback could cite another province's law as
+            # applicable. Fail closed when a custom retriever cannot filter.
+            return []
 
-        combined = _merge_ranked_chunks(groups)
-        if combined:
-            return combined
-        return self.retriever.retrieve(analysis.normalized_query)
+        return _merge_ranked_chunks(groups)
 
     def ask(self, question: str) -> QAResult:
         if not question or not question.strip():
