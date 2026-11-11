@@ -60,3 +60,6 @@ def test_corpus_search_response_contains_disclaimer():
     response = CorpusSearchService(StubRetriever([chunk()])).search("source")
     assert response.disclaimer == LEGAL_INFORMATION_DISCLAIMER
     assert "not legal advice" in response.disclaimer.lower()
+
+def test_demo_data_warning_is_not_hidden():
+    assert "fictional" in LEGAL_INFORMATION_DISCLAIMER
