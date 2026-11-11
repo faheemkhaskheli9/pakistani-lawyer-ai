@@ -53,14 +53,18 @@ def _required(entry: dict, field: str, filename: str) -> str:
 
 
 def _official_url(value: str, field: str, filename: str) -> str:
-    parsed = urlsplit(value)
-    host = (parsed.hostname or "").lower().removeprefix("www.")
+    try:
+        parsed = urlsplit(value)
+        host = (parsed.hostname or "").lower().removeprefix("www.")
+        port = parsed.port
+    except ValueError as exc:
+        raise SourceRegistryError(f"{filename}: malformed {field} URL") from exc
     if (
         parsed.scheme != "https"
         or host not in OFFICIAL_HOSTS
         or parsed.username is not None
         or parsed.password is not None
-        or parsed.port is not None
+        or port is not None
         or not parsed.path
     ):
         raise SourceRegistryError(
@@ -105,10 +109,13 @@ def validate_registry(
     if not isinstance(documents, dict) or not documents:
         raise SourceRegistryError("Registry documents must be a nonempty object")
 
-    source_files = {
-        p.name: p for p in root.rglob("*")
+    paths = [
+        p for p in root.rglob("*")
         if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
-    }
+    ]
+    source_files = {p.name: p for p in paths}
+    if len(source_files) != len(paths):
+        raise SourceRegistryError("Ambiguous or duplicated document filenames")
     if any(
         not isinstance(name, str)
         or Path(name).name != name
@@ -126,12 +133,6 @@ def validate_registry(
             f"Registry differs from corpus (missing={sorted(present - declared)}, "
             f"not_found={sorted(declared - present)})"
         )
-    if len(list(root.rglob("*"))) and len(source_files) != len({
-        p.resolve() for p in root.rglob("*")
-        if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
-    }):
-        raise SourceRegistryError("Ambiguous or duplicated document paths")
-
     today = today or date.today()
     admitted = {}
     for filename in sorted(documents):
@@ -200,6 +201,34 @@ def validate_registry(
             metadata["decision_date"] = _date(entry, "decision_date", filename, today)
         admitted[filename] = metadata
     return admitted
+
+
+def index_metadata_admitted(metadata: dict, *, today: date | None = None) -> bool:
+    """Validate stored review flags at API startup/readiness (not a legal audit)."""
+    today = today or date.today()
+    if (
+        metadata.get("corpus_admitted") is not True
+        or metadata.get("legal_status") != "current"
+        or metadata.get("rights_status") != "authorized"
+        or not metadata.get("source_url")
+        or not metadata.get("source_sha256")
+        or not metadata.get("rights_reference")
+        or not metadata.get("reviewer")
+    ):
+        return False
+    try:
+        reviewed = date.fromisoformat(metadata["reviewed_on"])
+        if reviewed > today or reviewed < today - timedelta(days=MAX_REVIEW_AGE_DAYS):
+            return False
+        if metadata.get("document_type") == "statute":
+            gazette_checked = date.fromisoformat(metadata["gazette_checked_on"])
+            if not metadata.get("gazette_url") or gazette_checked > today:
+                return False
+            if gazette_checked < today - timedelta(days=MAX_REVIEW_AGE_DAYS):
+                return False
+    except (KeyError, ValueError, TypeError):
+        return False
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
