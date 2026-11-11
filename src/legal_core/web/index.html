@@ -53,12 +53,9 @@
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var HKEY = "pla_history_v1";
+  // Do not persist API keys or potentially confidential legal questions
+  // in browser storage. Both are limited to the current page session.
   var keyEl = $("key");
-  function load(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
-  function save(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
-  keyEl.value = load("pla_key") || "";
-  keyEl.addEventListener("change", function () { save("pla_key", keyEl.value); });
 
   $("rtl").addEventListener("click", function () {
     var rtl = document.documentElement.dir !== "rtl";
@@ -67,7 +64,6 @@
   });
 
   var history = [];
-  try { history = JSON.parse(load(HKEY) || "[]"); } catch (e) { history = []; }
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -96,10 +92,10 @@
     $("log").prepend(box);
   }
   history.forEach(render);
-  function push(turn) { history.push(turn); save(HKEY, JSON.stringify(history.slice(-50))); render(turn); }
+  function push(turn) { history.push(turn); render(turn); }
 
   $("clear").addEventListener("click", function () {
-    history = []; save(HKEY, "[]"); $("log").textContent = "";
+    history = []; $("log").textContent = "";
   });
 
   function call(url, opts) {

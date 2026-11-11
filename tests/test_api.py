@@ -136,6 +136,7 @@ def test_web_ui_served_with_disclaimer_rtl_and_safe_rendering():
     assert "not legal advice" in html
     assert "dir" in html and "rtl" in html
     assert "innerHTML" not in html  # model/corpus text must be rendered as text
+    assert "sessionStorage" not in html  # never persist sensitive history or API keys
 
 def test_custom_index_dir_is_used_for_corpus_browsing(tmp_path, monkeypatch):
     from legal_core.chunk_store import ChunkRecord, ChunkStore
