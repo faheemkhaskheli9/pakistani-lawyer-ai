@@ -189,7 +189,7 @@ def test_metrics_separate_unsafe_answers_from_withheld_answers_and_errors():
     assert metrics["correct_refusal_rate"] == pytest.approx(1 / 3)
     assert metrics["error_count"] == 1
     assert report["legal_accuracy_established"] is False
-    assert report["cases"][-1]["error"].startswith("RuntimeError:")
+    assert report["cases"][-1]["error"] == "RuntimeError"
 
 
 def test_empty_denominator_is_reported_as_null_not_as_zero():
@@ -266,3 +266,22 @@ def test_complete_corpus_fingerprint_changes_when_an_unrelated_source_changes(tm
     new = corpus_snapshot_digest(index)
     assert old != new
     assert len(old) == len(new) == 64
+
+def test_answer_without_citation_integrity_fails_even_if_source_matches():
+    class WeakService:
+        def ask(self, question):
+            citation = AnswerCitation(
+                chunk_id="a", source="law.txt", section="Section 1",
+                citation="law.txt, Section 1", score=0.9, excerpt="fixture",
+            )
+            return QAResult(
+                status="answered", message="mock",
+                answer=LegalAnswer(question=question, answer="uncited claim", citations=(citation,)),
+                citation_verification=SimpleNamespace(verified=False),
+            )
+
+    ds = make_dataset(case("source-match", "question", "answered", sources=("law.txt",)))
+    result = evaluate_safety(WeakService(), ds)
+    assert result["cases"][0]["source_hit"]
+    assert not result["cases"][0]["passed"]
+    assert result["metrics"]["citation_integrity_rate"] == 0.0

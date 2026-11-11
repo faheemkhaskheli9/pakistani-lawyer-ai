@@ -257,10 +257,13 @@ def evaluate_safety(service: QuestionAnsweringService, dataset: BenchmarkDataset
             error = None
         except Exception as exc:  # evaluation should report, never hide, provider errors
             status, sources, integrity = "error", (), False
-            error = f"{type(exc).__name__}: {exc}"
+            # Provider errors can contain request bodies, user data or tokens.
+            # Keep only the exception class in machine-readable reports.
+            error = type(exc).__name__
         source_hit = bool(set(sources).intersection(case.expected_sources))
         passed = status == case.expected_status and (
-            case.expected_status == "no_relevant_source" or source_hit
+            case.expected_status == "no_relevant_source"
+            or (source_hit and integrity)
         )
         outcomes.append(CaseOutcome(
             id=case.id, language=case.language, category=case.category,
