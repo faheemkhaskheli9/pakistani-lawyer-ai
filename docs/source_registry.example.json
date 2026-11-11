@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "documents": {
+    "example_contracted_statute.pdf": {
+      "title": "Replace with actual Act title",
+      "document_type": "statute",
+      "jurisdiction": "Federal",
+      "publisher": "Ministry of Law and Justice",
+      "source_url": "https://pakistancode.gov.pk/english/",
+      "sha256": "REPLACE_WITH_SHA256_OF_LOCALLY_AUTHORIZED_BYTES",
+      "legal_status": "under_review",
+      "rights_status": "unknown",
+      "rights_basis": "Rights review is not complete",
+      "rights_reference": "REPLACE_WITH_PERMISSION_EVIDENCE_REFERENCE",
+      "reviewer": "REPLACE_WITH_QUALIFIED_REVIEWER",
+      "reviewed_on": "REPLACE_WITH_DATE_YYYY-MM-DD",
+      "effective_date": "REPLACE_WITH_DATE_YYYY-MM-DD",
+      "gazette_url": "https://pakistancode.gov.pk/english/",
+      "gazette_checked_on": "REPLACE_WITH_DATE_YYYY-MM-DD"
+    }
+  }
+}
