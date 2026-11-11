@@ -136,3 +136,17 @@ def test_web_ui_served_with_disclaimer_rtl_and_safe_rendering():
     assert "not legal advice" in html
     assert "dir" in html and "rtl" in html
     assert "innerHTML" not in html  # model/corpus text must be rendered as text
+
+def test_custom_index_dir_is_used_for_corpus_browsing(tmp_path, monkeypatch):
+    from legal_core.chunk_store import ChunkRecord, ChunkStore
+
+    index = tmp_path / "index"
+    ChunkStore(index / "chunks.json").upsert([
+        ChunkRecord(id="custom", source="law.txt", section="Section 4", chunk_index=0,
+                    text="Section 4. Current law.")
+    ])
+    monkeypatch.setenv("INDEX_DIR", str(index))
+    api = TestClient(create_app(qa_service=QAService(), search_service=SearchService(), api_key=TEST_API_KEY))
+    response = api.get("/api/v1/corpus", headers={"X-API-Key": TEST_API_KEY})
+    assert response.status_code == 200
+    assert response.json()["documents"][0]["source"] == "law.txt"

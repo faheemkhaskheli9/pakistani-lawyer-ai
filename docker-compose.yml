@@ -11,6 +11,11 @@ services:
       QA_RATE_LIMIT_PER_MINUTE: "${QA_RATE_LIMIT_PER_MINUTE:-30}"
       RETRIEVAL_TOP_K: "${RETRIEVAL_TOP_K:-5}"
       RETRIEVAL_MIN_SCORE: "${RETRIEVAL_MIN_SCORE:-0.20}"
+      INDEX_DIR: "${INDEX_DIR:-data/index}"
     volumes:
-      - ./data:/app/data
+      - ./data/corpus:/app/data/corpus:ro
+      - legal_index:/app/data/index
     restart: unless-stopped
+
+volumes:
+  legal_index:

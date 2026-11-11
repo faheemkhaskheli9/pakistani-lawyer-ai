@@ -23,4 +23,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
 
-CMD ["uvicorn", "legal_core.api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Volumes can hide build-time indexes; always refresh from the mounted corpus.
+# A failed ingestion aborts startup rather than serving an empty legal index.
+CMD ["sh", "-c", "python -m legal_core.ingest --corpus data/corpus --index-dir ${INDEX_DIR:-data/index} && exec uvicorn legal_core.api:app --host 0.0.0.0 --port 8000"]

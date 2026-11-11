@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
@@ -20,6 +21,7 @@ from .filters import RetrievalFilters
 from .generation import GenerationError
 from .hybrid_retrieval import build_hybrid_retriever
 from .limitation import RULES, calculate_limitation
+from .retrieval import DEFAULT_INDEX_DIR
 from .security import (
     SlidingWindowRateLimiter,
     api_key_matches,
@@ -71,8 +73,9 @@ class DraftRequest(BaseModel):
     values: dict[str, str] = Field(default_factory=dict)
 
 
-def _default_services():
-    retriever = build_hybrid_retriever()
+def _default_services(index_dir: str | Path | None = None):
+    index_dir = index_dir or os.environ.get("INDEX_DIR", DEFAULT_INDEX_DIR)
+    retriever = build_hybrid_retriever(index_dir=index_dir)
     return QuestionAnsweringService(retriever), CorpusSearchService(retriever)
 
 
@@ -87,13 +90,14 @@ def create_app(
     trust_proxy: bool | None = None,
 ) -> FastAPI:
     expected_api_key = resolve_api_key(api_key)  # fail fast when no key is configured
+    index_dir = Path(os.environ.get("INDEX_DIR", DEFAULT_INDEX_DIR))
     if qa_service is None or search_service is None:
-        default_qa, default_search = _default_services()
+        default_qa, default_search = _default_services(index_dir)
         qa_service = qa_service or default_qa
         search_service = search_service or default_search
 
-    browse_service = browse_service or CorpusBrowseService()
-    citation_verifier = citation_verifier or CitationVerifier()
+    browse_service = browse_service or CorpusBrowseService(index_dir)
+    citation_verifier = citation_verifier or CitationVerifier(index_dir)
 
     limiter = SlidingWindowRateLimiter(resolve_rate_limit(qa_rate_limit))
 
