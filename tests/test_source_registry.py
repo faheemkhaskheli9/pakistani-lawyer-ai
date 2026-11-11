@@ -163,11 +163,24 @@ def test_production_startup_requires_admitted_metadata(tmp_path, monkeypatch):
     app = create_app(qa_service=object(), search_service=object(), api_key="test-key")
     assert TestClient(app).get("/ready").status_code == 200
 
-    # A non-admitted index must fail closed even when source_url is populated.
+    # A source URL alone does not constitute review or redistribution approval.
+    monkeypatch.setenv("APP_ENV", "development")
+    (root / "sources.json").write_text(
+        json.dumps({doc.name: {
+            "title": entry["title"], "source_url": entry["source_url"],
+            "basis": "not legal approval",
+        }}),
+        encoding="utf-8",
+    )
     rogue = tmp_path / "rogue"
-    run_ingestion(root, rogue, admitted_only=False)  # APP_ENV production overrides this
-    for record in ChunkStore(rogue / "chunks.json").all():
-        assert record.metadata["corpus_admitted"] is True
+    run_ingestion(root, rogue)
+    assert all(not row.metadata.get("corpus_admitted")
+               for row in ChunkStore(rogue / "chunks.json").all())
+
+    monkeypatch.setenv("INDEX_DIR", str(rogue))
+    monkeypatch.setenv("APP_ENV", "production")
+    with pytest.raises(RuntimeError, match="Production requires"):
+        create_app(qa_service=object(), search_service=object(), api_key="test-key")
 
 
 def test_production_ingest_requires_registry_even_without_cli_flag(tmp_path, monkeypatch):
@@ -176,3 +189,42 @@ def test_production_ingest_requires_registry_even_without_cli_flag(tmp_path, mon
     monkeypatch.setenv("APP_ENV", "production")
     with pytest.raises(SourceRegistryError, match="Missing source_registry"):
         run_ingestion(root, tmp_path / "index")
+
+def test_future_review_and_expired_gazette_are_rejected(tmp_path):
+    root, doc, entry, save = fixture_corpus(tmp_path)
+    entry["reviewed_on"] = (date.today() + timedelta(days=1)).isoformat()
+    save()
+    with pytest.raises(SourceRegistryError, match="future"):
+        validate_registry(root)
+
+    entry["reviewed_on"] = date.today().isoformat()
+    entry["gazette_checked_on"] = (date.today() - timedelta(days=91)).isoformat()
+    save()
+    with pytest.raises(SourceRegistryError, match="Gazette check"):
+        validate_registry(root)
+
+
+def test_symlinked_or_nested_corpus_document_is_rejected(tmp_path):
+    root, doc, entry, save = fixture_corpus(tmp_path)
+    hidden = tmp_path / "target.txt"
+    hidden.write_bytes(doc.read_bytes())
+    doc.unlink()
+    doc.symlink_to(hidden)
+    with pytest.raises(SourceRegistryError, match="symlinked"):
+        validate_registry(root)
+
+
+def test_unreadable_pdf_fails_before_index_changes(tmp_path):
+    root, doc, entry, save = fixture_corpus(tmp_path)
+    doc.unlink()
+    pdf = root / "test_act.pdf"
+    pdf.write_bytes(b"not a valid PDF")
+    entry["sha256"] = hashlib.sha256(pdf.read_bytes()).hexdigest()
+    registry = root / "source_registry.json"
+    registry.write_text(
+        json.dumps({"schema_version": 1, "documents": {pdf.name: entry}}),
+        encoding="utf-8",
+    )
+    with pytest.raises(Exception):
+        run_ingestion(root, tmp_path / "index", admitted_only=True)
+    assert not (tmp_path / "index" / "chunks.json").exists()

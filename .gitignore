@@ -20,3 +20,13 @@ chroma/
 .vscode/*
 !.vscode/launch.json
 .idea/
+
+# Legal source text and approved-source registries must not leak into Git.
+# Only the original fictional seed fixtures remain tracked.
+data/corpus/*
+!data/corpus/sample_civil_code.txt
+!data/corpus/sample_criminal_procedure.txt
+!data/corpus/sample_evidence_act.txt
+!data/corpus/sources.json
+data/index/
+data/evaluation-index/
