@@ -26,9 +26,12 @@ presenting a potentially outdated portal copy as the authoritative Gazette.
 5. **Validation (in progress):** human reviewers must compare extracted
    content to official Gazettes, sample citations, amendments, and relevant
    judicial precedent. A registry flag does **not** automate this legal review.
-6. **Quality benchmark (remaining):** 100+ expert-labeled questions by
-   statute, including explicit negatives, outdated provisions, legal changes,
-   jurisdiction boundaries, Urdu/Roman Urdu, and contradictory case law.
+6. **Quality benchmark (partially implemented):** reproducible Q&A runner,
+   failure metrics and 120 synthetic English/Urdu/Roman Urdu regression cases
+   are available. **Still remaining:** 100+ independently advocate-reviewed
+   questions tied to authorized real statutes, including explicit negatives,
+   outdated provisions, jurisdiction boundaries and contradictory case law.
+   The synthetic cases do not count toward that review target.
 7. **Operations (remaining):** secure authenticated access, controlled review
    renewal, monitoring, backups, incident response and lawyer user study.
 

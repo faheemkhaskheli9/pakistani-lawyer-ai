@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "dataset_id": "replace-with-your-private-review-set-id",
+  "kind": "legal",
+  "cases": [
+    {
+      "id": "review-contract-001",
+      "question": "REPLACE WITH A QUESTION REVIEWED AGAINST YOUR LICENSED TEXT",
+      "language": "english",
+      "category": "grounded",
+      "expected_status": "answered",
+      "expected_sources": ["authorized_statute.pdf"],
+      "source_hashes": {},
+      "review": {
+        "status": "draft"
+      }
+    },
+    {
+      "id": "review-negative-001",
+      "question": "REPLACE WITH AN OUT-OF-CORPUS QUESTION VERIFIED BY A LAWYER",
+      "language": "urdu",
+      "category": "out_of_corpus",
+      "expected_status": "no_relevant_source",
+      "expected_sources": [],
+      "review": {
+        "status": "draft"
+      }
+    }
+  ]
+}

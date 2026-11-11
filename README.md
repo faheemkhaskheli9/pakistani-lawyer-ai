@@ -161,9 +161,19 @@ that index, and "Python: Debug Tests (pytest)" runs the test suite the same way.
 
 ## 10. Evaluation
 
-Document evaluation metrics and how to reproduce them here (see
-`docs/evaluation.md`): retrieval precision@k against a small labeled query
-set, and manual citation-accuracy spot checks.
+Two separate checks are available:
+
+- `python -m legal_core.evaluation --top-k 3` tests retrieval on a tiny
+  fictional corpus.
+- `python -m legal_core.safety_benchmark --json-out data/evaluation-index/report.json`
+  runs 120 synthetic English/Urdu/Roman Urdu cases through the complete
+  question-answering service and reports wrong answers, correct refusals,
+  source matches and per-language results.
+
+Neither test establishes Pakistani legal accuracy. A lawyer-approved dataset,
+legal-source hash pinning and the real-corpus evaluation workflow are described
+in [docs/evaluation.md](docs/evaluation.md) and
+[docs/verified-corpus-plan.md](docs/verified-corpus-plan.md).
 
 ## 11. Results
 
