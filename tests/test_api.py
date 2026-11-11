@@ -151,3 +151,25 @@ def test_custom_index_dir_is_used_for_corpus_browsing(tmp_path, monkeypatch):
     response = api.get("/api/v1/corpus", headers={"X-API-Key": TEST_API_KEY})
     assert response.status_code == 200
     assert response.json()["documents"][0]["source"] == "law.txt"
+
+def test_readiness_rejects_empty_index(tmp_path, monkeypatch):
+    monkeypatch.setenv("INDEX_DIR", str(tmp_path / "missing"))
+    c = TestClient(create_app(qa_service=QAService(), search_service=SearchService(), api_key=TEST_API_KEY))
+    r = c.get("/ready")
+    assert r.status_code == 503
+
+
+def test_production_refuses_fictional_seed_documents(tmp_path, monkeypatch):
+    import pytest
+
+    from legal_core.chunk_store import ChunkRecord, ChunkStore
+
+    index = tmp_path / "index"
+    ChunkStore(index / "chunks.json").upsert([
+        ChunkRecord(id="fiction", source="sample_civil_code.txt", section="Section 1",
+                    chunk_index=0, text="Sample text.", metadata={"source_url": None})
+    ])
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("INDEX_DIR", str(index))
+    with pytest.raises(RuntimeError, match="Production requires"):
+        create_app(qa_service=QAService(), search_service=SearchService(), api_key=TEST_API_KEY)

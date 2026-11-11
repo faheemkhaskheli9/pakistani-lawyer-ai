@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .browse import CorpusBrowseService
+from .chunk_store import ChunkStore
 from .corpus_search import CorpusSearchService
 from .doc_summary import MAX_CHARS, summarize_document
 from .drafting import TEMPLATES, render_draft
@@ -30,6 +31,7 @@ from .security import (
     resolve_rate_limit,
 )
 from .service import QuestionAnsweringService
+from .vector_store import VectorStore
 from .verify_tool import CitationVerifier
 
 
@@ -91,6 +93,19 @@ def create_app(
 ) -> FastAPI:
     expected_api_key = resolve_api_key(api_key)  # fail fast when no key is configured
     index_dir = Path(os.environ.get("INDEX_DIR", DEFAULT_INDEX_DIR))
+    if os.environ.get("APP_ENV", "development").strip().lower() == "production":
+        # Never serve the fictional seed statutes as if they were real law.
+        # Source URLs are operator-provided provenance, not a legal audit.
+        records = ChunkStore(index_dir / "chunks.json").all()
+        if not records or any(
+            Path(record.source).name.startswith("sample_")
+            or not record.metadata.get("source_url")
+            for record in records
+        ):
+            raise RuntimeError(
+                "Production requires a non-demo legal corpus with provenance "
+                "for every indexed document; do not deploy the sample corpus."
+            )
     if qa_service is None or search_service is None:
         default_qa, default_search = _default_services(index_dir)
         qa_service = qa_service or default_qa
@@ -115,6 +130,18 @@ def create_app(
     @app.get("/health")
     def health():
         return {"status": "ok"}
+
+    @app.get("/ready")
+    def ready():
+        """Fail readiness if mounted corpus indexes are absent or corrupt."""
+        try:
+            if not ChunkStore(index_dir / "chunks.json").all():
+                raise ValueError("empty corpus")
+            if len(VectorStore(index_dir / "vectors")) == 0:
+                raise ValueError("empty vector store")
+        except (OSError, ValueError, KeyError, RuntimeError):
+            raise HTTPException(status_code=503, detail="Legal corpus index not ready") from None
+        return {"status": "ready"}
 
     def guard(request: Request, x_api_key: str | None) -> None:
         if not api_key_matches(x_api_key, expected_api_key):

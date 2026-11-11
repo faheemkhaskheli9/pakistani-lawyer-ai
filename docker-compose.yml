@@ -12,6 +12,7 @@ services:
       RETRIEVAL_TOP_K: "${RETRIEVAL_TOP_K:-5}"
       RETRIEVAL_MIN_SCORE: "${RETRIEVAL_MIN_SCORE:-0.20}"
       INDEX_DIR: "${INDEX_DIR:-data/index}"
+      APP_ENV: "${APP_ENV:-development}"
     volumes:
       - ./data/corpus:/app/data/corpus:ro
       - legal_index:/app/data/index
