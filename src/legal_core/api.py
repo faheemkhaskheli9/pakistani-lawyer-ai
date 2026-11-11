@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict
+from datetime import timedelta
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,7 @@ from .security import (
     resolve_rate_limit,
 )
 from .service import QuestionAnsweringService
+from .source_registry import MAX_REVIEW_AGE_DAYS
 from .vector_store import VectorStore
 from .verify_tool import CitationVerifier
 
@@ -97,9 +99,18 @@ def create_app(
         # Never serve the fictional seed statutes as if they were real law.
         # Source URLs are operator-provided provenance, not a legal audit.
         records = ChunkStore(index_dir / "chunks.json").all()
+        now = date.today()
         if not records or any(
             Path(record.source).name.startswith("sample_")
+            or record.metadata.get("corpus_admitted") is not True
+            or record.metadata.get("legal_status") != "current"
+            or record.metadata.get("rights_status") != "authorized"
+            or not record.metadata.get("source_sha256")
             or not record.metadata.get("source_url")
+            or not record.metadata.get("reviewed_on")
+            or date.fromisoformat(record.metadata["reviewed_on"]) < (
+                now - timedelta(days=MAX_REVIEW_AGE_DAYS)
+            )
             for record in records
         ):
             raise RuntimeError(

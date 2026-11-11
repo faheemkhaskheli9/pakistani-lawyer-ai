@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import logging
 import sys
 from pathlib import Path
@@ -35,6 +36,7 @@ from .embedding_pipeline import embed_new_chunks
 from .embeddings import get_embedder
 from .metadata import load_legal_metadata
 from .parsing import SUPPORTED_EXTENSIONS, DocumentParseError, read_source_text
+from .source_registry import validate_registry
 from .statute_structure import StatuteStructureTracker
 from .vector_store import VectorStore
 
@@ -56,10 +58,17 @@ def iter_source_files(source_dir: str | Path, extensions: Iterable[str] = SUPPOR
 
 
 class IngestionPipeline:
-    def __init__(self, store: ChunkStore, chunk_size: int = 800, chunk_overlap: int = 100):
+    def __init__(
+        self,
+        store: ChunkStore,
+        chunk_size: int = 800,
+        chunk_overlap: int = 100,
+        admitted_sources: dict[str, dict] | None = None,
+    ):
         self.store = store
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.admitted_sources = admitted_sources
 
     def ingest_file(self, path: Path) -> int:
         """Ingest one file; returns the number of new/updated chunks.
@@ -71,6 +80,12 @@ class IngestionPipeline:
         text = read_source_text(path)
         chunks = chunk_text(text, self.chunk_size, self.chunk_overlap)
         legal_metadata = load_legal_metadata(path, text=text).to_dict()
+        if self.admitted_sources is not None:
+            # Registry fields override guessed or unaudited sidecar metadata.
+            # A missing admission is an error, not a silent demo fallback.
+            if path.name not in self.admitted_sources:
+                raise ValueError(f"Source not admitted: {path.name}")
+            legal_metadata.update(self.admitted_sources[path.name])
         tracker = StatuteStructureTracker()
         records = []
         for i, chunk in enumerate(chunks):
@@ -102,6 +117,8 @@ class IngestionPipeline:
             try:
                 total += self.ingest_file(path)
             except DocumentParseError as exc:
+                if self.admitted_sources is not None:
+                    raise  # strict legal corpora must fail closed
                 logger.error("Dropping unparseable source document %s: %s", path, exc)
                 self.store.replace_source(str(path), [])
                 continue
@@ -116,6 +133,7 @@ def run_ingestion(
     chunk_size: int = 800,
     chunk_overlap: int = 100,
     embedding_provider: str | None = None,
+    admitted_only: bool = False,
 ) -> tuple[int, int]:
     """Run ingestion + embedding end to end against `corpus_dir`.
 
@@ -133,11 +151,23 @@ def run_ingestion(
     unchanged corpus re-touches the same records instead of duplicating
     them — `chunks_newly_embedded` is 0 on a repeat run with nothing new.
     """
+    # Strict verification happens before any index mutation. Production always
+    # requires it, including when launched via docker-compose.
+    require_admission = admitted_only or os.environ.get("APP_ENV", "").lower() == "production"
+    admitted_sources = validate_registry(corpus_dir) if require_admission else None
+    if admitted_sources is not None:
+        for path in iter_source_files(corpus_dir):
+            parsed = read_source_text(path)
+            if not parsed.strip():
+                raise ValueError(f"Admitted document has no extractable text: {path.name}")
     index_dir = Path(index_dir)
     chunk_store = ChunkStore(index_dir / "chunks.json")
     vector_store = VectorStore(index_dir / "vectors")
 
-    pipeline = IngestionPipeline(chunk_store, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    pipeline = IngestionPipeline(
+        chunk_store, chunk_size=chunk_size, chunk_overlap=chunk_overlap,
+        admitted_sources=admitted_sources,
+    )
     ingested = pipeline.ingest_directory(corpus_dir)
 
     embedder = get_embedder(embedding_provider)
@@ -166,6 +196,10 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default="data/index",
         help="Directory to persist the chunk store and vector store in (default: data/index).",
     )
+    parser.add_argument(
+        "--admitted-only", action="store_true",
+        help="Require current, rights-cleared, human-reviewed source_registry.json for every file.",
+    )
     parser.add_argument("--chunk-size", type=int, default=800, help="Max characters per chunk (default: 800).")
     parser.add_argument("--chunk-overlap", type=int, default=100, help="Character overlap between chunks (default: 100).")
     parser.add_argument(
@@ -193,6 +227,7 @@ def main(argv: list[str] | None = None) -> int:
             chunk_size=args.chunk_size,
             chunk_overlap=args.chunk_overlap,
             embedding_provider=args.embedding_provider,
+            admitted_only=args.admitted_only,
         )
     except Exception as exc:  # noqa: BLE001 - deliberately broad: any failure
         # here must become a non-zero exit for the caller (CI, a human, a
