@@ -48,7 +48,7 @@ def test_bm25_finds_exact_citation_terms(tmp_path):
     store, _ = make_store(tmp_path)
     matches = BM25Index(store.entries()).search("Article 199 PLD 2024", top_k=3)
     assert matches[0].id == "citation"
-    assert matches[0].score == 1.0
+    assert 0.0 < matches[0].score < 1.0
 
 
 def test_hybrid_can_retrieve_lexical_match_when_embedding_query_has_no_signal(tmp_path):
@@ -85,3 +85,30 @@ def test_hybrid_empty_store_returns_empty(tmp_path):
     store = VectorStore(tmp_path / "empty")
     hybrid = HybridRetriever(Retriever(AxisEmbedder(), store, top_k=3), top_k=3)
     assert hybrid.retrieve("Article 199") == []
+
+def test_weak_best_vector_match_is_not_normalized_to_perfect_confidence(tmp_path):
+    class NearlyOrthogonalEmbedder(EmbeddingProvider):
+        dimension = 2
+
+        def embed(self, texts):
+            return [
+                [1.0, 0.0] if "statute" in text else [0.01, 1.0]
+                for text in texts
+            ]
+
+    store = VectorStore(tmp_path / "weak")
+    store.upsert(
+        "weak", [1.0, 0.0], "statute unrelated to the question",
+        {"source": "statute.txt", "document_type": "statute"},
+    )
+    hybrid = HybridRetriever(Retriever(NearlyOrthogonalEmbedder(), store))
+    results = hybrid.retrieve("pineapple spaceship")
+    assert len(results) == 1
+    assert results[0].score < 0.20
+
+
+def test_single_weak_lexical_match_is_not_normalized_to_one(tmp_path):
+    store, _ = make_store(tmp_path)
+    matches = BM25Index(store.entries()).search("unrelated unrelated bail extraterrestrial", top_k=3)
+    assert matches
+    assert matches[0].score < 0.5

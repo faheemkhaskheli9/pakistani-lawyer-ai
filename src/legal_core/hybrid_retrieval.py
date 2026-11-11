@@ -79,11 +79,14 @@ class BM25Index:
 
         raw.sort(key=lambda item: (-item[1], item[0]))
         raw = raw[:top_k]
-        max_score = raw[0][1] if raw else 0.0
+        # An absolute, bounded score avoids turning any tiny lexical match
+        # into a perfect 1.0 merely because it ranked first.
+        unique_terms = set(query_tokens)
         return [
             LexicalMatch(
                 id=self.entries[index].id,
-                score=(score / max_score if max_score else 0.0),
+                score=(score / (score + 2.0))
+                * (len(unique_terms.intersection(self._tokens[index])) / len(unique_terms)),
                 document=self.entries[index].document,
                 metadata=dict(self.entries[index].metadata),
             )
@@ -137,7 +140,6 @@ class HybridRetriever:
 
         vector_by_id = {item.chunk_id: item for item in vector_results}
         lexical_by_id = {item.id: item for item in lexical_results}
-        vector_max = max((max(item.score, 0.0) for item in vector_results), default=0.0)
 
         ordered_ids = list(dict.fromkeys(
             [item.chunk_id for item in vector_results] + [item.id for item in lexical_results]
@@ -146,7 +148,9 @@ class HybridRetriever:
         for stable_index, chunk_id in enumerate(ordered_ids):
             vector = vector_by_id.get(chunk_id)
             lexical = lexical_by_id.get(chunk_id)
-            vector_score = max(vector.score, 0.0) / vector_max if vector and vector_max else 0.0
+            # Cosine similarity is already an absolute score. Do not divide
+            # by the top score: that promoted weak/off-topic matches to 1.
+            vector_score = min(max(vector.score, 0.0), 1.0) if vector else 0.0
             lexical_score = lexical.score if lexical else 0.0
             score = self.vector_weight * vector_score + self.lexical_weight * lexical_score
 
