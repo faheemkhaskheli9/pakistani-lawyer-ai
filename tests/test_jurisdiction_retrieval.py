@@ -20,7 +20,8 @@ def chunk(chunk_id, score, jurisdiction):
 
 class Provider(LLMProvider):
     def generate(self, *, question: str, context: str) -> str:
-        return f"Grounded answer. {context.splitlines()[0]}"
+        labels = [line for line in context.splitlines() if line.startswith("[SOURCE ")]
+        return "Grounded answer. " + " ".join(labels)
 
 
 class FilterAwareRetriever:

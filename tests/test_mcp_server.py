@@ -82,8 +82,8 @@ def test_malformed_params_and_tool_arguments_do_not_crash_server():
 
 def test_malformed_params_are_recoverable_in_stdio_loop():
     inp = io.StringIO(
-        '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":["bad"]}\\n'
-        '{"jsonrpc":"2.0","id":2,"method":"ping"}\\n'
+        '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":["bad"]}\n'
+        '{"jsonrpc":"2.0","id":2,"method":"ping"}\n'
     )
     output = io.StringIO()
     LegalMCPServer().serve(inp, output)
