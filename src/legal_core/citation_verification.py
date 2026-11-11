@@ -1,8 +1,8 @@
 """Citation integrity checks for grounded legal answers."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 from .qa import AnswerCitation, LegalAnswer
 from .retrieval import RetrievedChunk
@@ -71,7 +71,7 @@ def verify_citations(
     # Check citations in the *model output*, not merely citations attached
     # automatically from retrieved context. This is an integrity check, not
     # a semantic entailment or legal-correctness guarantee.
-    labels = re.findall(r"\\[SOURCE[^\\]\\n]*\\]", answer.answer)
+    labels = re.findall(r"\[SOURCE[^\]\n]*\]", answer.answer)
     allowed = {
         f"[SOURCE {chunk.rank}: {chunk.citation}]": chunk.chunk_id
         for chunk in chunks
