@@ -21,6 +21,7 @@ def test_reported_case_found_and_missing(tmp_path):
     v = make(tmp_path)
     ok = v.verify("pld  2010 sc 265")
     assert ok.kind == "reported_case" and ok.found_in_corpus and ok.normalized == "PLD 2010 SC 265"
+    assert "does not verify" in ok.note
     miss = v.verify("2001 SCMR 999")
     assert miss.format_valid and not miss.found_in_corpus
 

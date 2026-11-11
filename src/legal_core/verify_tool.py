@@ -60,7 +60,9 @@ class CitationVerifier:
             )
             return CitationVerification(
                 text, "reported_case", True, bool(hits), parsed.normalized, hits,
-                "" if hits else "Citation is well-formed but not found in the loaded corpus; "
+                "Citation string appears in indexed text only; this does not verify the "
+                "original judgment or its legal holding." if hits else
+                "Citation is well-formed but not found in the loaded corpus; "
                 "this does not prove it is fake -- check the law report.",
             )
 
@@ -77,7 +79,9 @@ class CitationVerifier:
             )
             return CitationVerification(
                 text, "statute_section", True, bool(hits), f"Section {m.group('num')}", hits,
-                "" if hits else "Section not found in the loaded corpus.",
+                "Section appears in indexed text; verify the current authoritative Act "
+                "and amendments before relying on it." if hits else
+                "Section not found in the loaded corpus.",
             )
 
         return CitationVerification(
