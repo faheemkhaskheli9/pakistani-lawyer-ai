@@ -94,7 +94,9 @@ class LegalMCPServer:
         def err(code: int, text: str) -> dict:
             return {"jsonrpc": "2.0", "id": mid, "error": {"code": code, "message": text}}
 
-        params = msg.get("params") or {}
+        params = msg.get("params")
+        if params is None:
+            params = {}
         if not isinstance(params, dict):
             return err(-32602, "params must be an object")
         if method == "initialize":
@@ -114,7 +116,9 @@ class LegalMCPServer:
             name = params.get("name")
             if name not in self.tools:
                 return err(-32602, f"Unknown tool: {name}")
-            args = params.get("arguments") or {}
+            args = params.get("arguments")
+            if args is None:
+                args = {}
             if not isinstance(args, dict):
                 return err(-32602, "tool arguments must be an object")
             required = self.tools[name][1]["required"]

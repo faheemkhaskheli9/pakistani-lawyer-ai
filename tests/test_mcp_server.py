@@ -71,6 +71,10 @@ def test_malformed_params_and_tool_arguments_do_not_crash_server():
         "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["bad"]
     })
     assert invalid_params["error"]["code"] == -32602
+    empty_array = server.handle({
+        "jsonrpc": "2.0", "id": 3, "method": "ping", "params": []
+    })
+    assert empty_array["error"]["code"] == -32602
 
     invalid_arguments = server.handle({
         "jsonrpc": "2.0", "id": 2, "method": "tools/call",
