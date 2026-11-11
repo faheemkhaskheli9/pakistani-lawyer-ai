@@ -42,3 +42,32 @@ authored for this project, not a reproduction of any real statute.
 | Date | Phase | Metric | Value | Notes |
 |------|-------|--------|-------|-------|
 | _TBD_ | | | | |
+
+## Release and QA safety notes
+
+The sample corpus is fictional. Its passing tests **do not** establish accuracy
+against Pakistani law. Do not deploy it as a legal advice service. The production
+`APP_ENV` gate blocks startup with the sample corpus or documents without
+`source_url` metadata; provenance URLs alone do not prove current legal validity.
+
+Citation integrity verifies that answer text references retrieved source labels
+rather than relying on citations attached automatically by the application.
+**It does not verify factual entailment, whether a judgment is binding, or
+whether a statute is currently in force.** Advocate review and source/version
+verification remain necessary before real-user deployment.
+
+The Docker image rebuilds the search index at startup after persistent volumes
+have mounted. `GET /health` confirms process health; `GET /ready` returns
+HTTP 503 when the indexed corpus is missing, empty, or corrupt.
+
+For a local smoke test (after installing development requirements):
+
+```bash
+pytest tests/test_integration_smoke.py
+pytest tests/
+ruff check src tests
+```
+
+Remaining work is tracked under GitHub issues #28-#34. In particular, real
+legislation, a lawyer-reviewed evaluation set, account-level authorization,
+privacy controls, and security testing are release blockers for public use.
