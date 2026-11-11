@@ -95,6 +95,8 @@ class LegalMCPServer:
             return {"jsonrpc": "2.0", "id": mid, "error": {"code": code, "message": text}}
 
         params = msg.get("params") or {}
+        if not isinstance(params, dict):
+            return err(-32602, "params must be an object")
         if method == "initialize":
             return ok({
                 "protocolVersion": PROTOCOL_VERSION,
@@ -113,6 +115,8 @@ class LegalMCPServer:
             if name not in self.tools:
                 return err(-32602, f"Unknown tool: {name}")
             args = params.get("arguments") or {}
+            if not isinstance(args, dict):
+                return err(-32602, "tool arguments must be an object")
             required = self.tools[name][1]["required"]
             missing = [r for r in required if r not in args]
             if missing:
@@ -120,7 +124,7 @@ class LegalMCPServer:
             try:
                 payload = self.tools[name][2](args)
                 text, is_error = json.dumps(payload, ensure_ascii=False, default=str), False
-            except (ValueError, KeyError, TypeError) as exc:
+            except (ValueError, KeyError, TypeError, OverflowError) as exc:
                 text, is_error = f"Error: {exc}", True
             return ok({"content": [{"type": "text", "text": text}], "isError": is_error})
         return err(-32601, f"Method not found: {method}")

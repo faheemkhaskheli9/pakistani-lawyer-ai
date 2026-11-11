@@ -64,3 +64,29 @@ def test_real_subprocess_roundtrip():
         capture_output=True, text=True, timeout=30, env={"PYTHONPATH": "src", "PATH": ""},
     )
     assert json.loads(p.stdout)["result"]["tools"]
+
+def test_malformed_params_and_tool_arguments_do_not_crash_server():
+    server = LegalMCPServer()
+    invalid_params = server.handle({
+        "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["bad"]
+    })
+    assert invalid_params["error"]["code"] == -32602
+
+    invalid_arguments = server.handle({
+        "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+        "params": {"name": "verify_citation", "arguments": ["bad"]},
+    })
+    assert invalid_arguments["error"]["code"] == -32602
+    assert call(server, "ping")["result"] == {}
+
+
+def test_malformed_params_are_recoverable_in_stdio_loop():
+    inp = io.StringIO(
+        '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":["bad"]}\\n'
+        '{"jsonrpc":"2.0","id":2,"method":"ping"}\\n'
+    )
+    output = io.StringIO()
+    LegalMCPServer().serve(inp, output)
+    messages = [json.loads(line) for line in output.getvalue().splitlines()]
+    assert messages[0]["error"]["code"] == -32602
+    assert messages[1]["result"] == {}
