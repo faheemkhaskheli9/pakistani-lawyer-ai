@@ -116,11 +116,15 @@ def test_approved_legal_review_requires_reviewer_evidence_and_content_hash(tmp_p
         "status": "approved", "reviewer": "lawyer reviewer",
         "reviewed_on": date.today().isoformat(), "evidence_ref": "case-law review record",
     }
-    with pytest.raises(ValueError, match="content hashes"):
+    with pytest.raises(ValueError, match="corpus_sha256"):
         load_dataset(write_dataset(tmp_path, data, kind="legal"), require_approved=True)
 
     data["source_hashes"] = {"law.txt": "f" * 64}
-    ds = load_dataset(write_dataset(tmp_path, data, kind="legal"), require_approved=True)
+    fixture = json.loads((tmp_path / "cases.json").read_text())
+    fixture["corpus_sha256"] = "e" * 64
+    fixture["cases"] = [data]
+    (tmp_path / "cases.json").write_text(json.dumps(fixture), encoding="utf-8")
+    ds = load_dataset(tmp_path / "cases.json", require_approved=True)
     assert ds.kind == "legal" and ds.cases[0].review_status == "approved"
 
 
@@ -229,3 +233,36 @@ def test_cli_rejects_approval_gate_without_mutating_index(tmp_path):
     ])
     assert rc == 1
     assert not index.exists()
+
+def test_approved_abstention_label_requires_full_corpus_snapshot(tmp_path):
+    negative = row(status="approved")
+    negative["expected_status"] = "no_relevant_source"
+    negative["expected_sources"] = []
+    negative["review"] = {
+        "status": "approved", "reviewer": "expert",
+        "reviewed_on": date.today().isoformat(), "evidence_ref": "review fixture",
+    }
+    path = write_dataset(tmp_path, negative, kind="legal")
+    with pytest.raises(ValueError, match="corpus_sha256"):
+        load_dataset(path, require_approved=True)
+
+
+def test_complete_corpus_fingerprint_changes_when_an_unrelated_source_changes(tmp_path):
+    from legal_core.safety_benchmark import corpus_snapshot_digest
+
+    index = tmp_path / "index"
+    store = ChunkStore(index / "chunks.json")
+    one = ChunkRecord(
+        id="a", source="law.txt", section="Section 1", chunk_index=0,
+        text="source a", metadata={"source_sha256": "a" * 64},
+    )
+    other = ChunkRecord(
+        id="b", source="other.txt", section="Section 1", chunk_index=0,
+        text="source b", metadata={"source_sha256": "b" * 64},
+    )
+    store.upsert([one, other])
+    old = corpus_snapshot_digest(index)
+    store.upsert([replace(other, metadata={"source_sha256": "c" * 64})])
+    new = corpus_snapshot_digest(index)
+    assert old != new
+    assert len(old) == len(new) == 64

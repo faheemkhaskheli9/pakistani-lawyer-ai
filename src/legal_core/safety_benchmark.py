@@ -54,6 +54,7 @@ class BenchmarkDataset:
     kind: str
     digest_sha256: str
     cases: tuple[BenchmarkCase, ...]
+    corpus_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,11 @@ def load_dataset(path: str | Path = DEFAULT_CASES, *, require_approved: bool = F
     if require_approved and kind != "legal":
         raise ValueError("synthetic cases cannot satisfy lawyer-approved evaluation")
 
+    corpus_hash = payload.get("corpus_sha256")
+    if corpus_hash is not None and (
+        not isinstance(corpus_hash, str) or not SHA256_RE.fullmatch(corpus_hash)
+    ):
+        raise ValueError("corpus_sha256 must be a lowercase 64-character SHA-256")
     cases: list[BenchmarkCase] = []
     seen: set[str] = set()
     for index, row in enumerate(rows):
@@ -152,6 +158,8 @@ def load_dataset(path: str | Path = DEFAULT_CASES, *, require_approved: bool = F
                 raise ValueError(f"{case_id}: reviewed_on must be a valid ISO date") from exc
             if reviewed_date > date.today():
                 raise ValueError(f"{case_id}: review date cannot be in the future")
+            if corpus_hash is None:
+                raise ValueError(f"{case_id}: approved labels require corpus_sha256")
             if status == "answered" and set(hashes) != set(sources):
                 raise ValueError(f"{case_id}: approved source labels require content hashes")
         cases.append(BenchmarkCase(
@@ -160,7 +168,27 @@ def load_dataset(path: str | Path = DEFAULT_CASES, *, require_approved: bool = F
             review_status=review_status, reviewer=reviewer, reviewed_on=reviewed_on,
             evidence_ref=evidence_ref, source_hashes=hashes,
         ))
-    return BenchmarkDataset(dataset_id, kind, hashlib.sha256(raw).hexdigest(), tuple(cases))
+    return BenchmarkDataset(
+        dataset_id, kind, hashlib.sha256(raw).hexdigest(), tuple(cases), corpus_hash
+    )
+
+
+def corpus_snapshot_digest(index_dir: str | Path) -> str:
+    """Fingerprint all source versions; abstention labels depend on corpus coverage."""
+    records = ChunkStore(Path(index_dir) / "chunks.json").all()
+    sources: dict[str, str] = {}
+    for record in records:
+        name = Path(record.source).name
+        digest = record.metadata.get("source_sha256")
+        if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
+            raise ValueError(f"{name}: indexed source has no valid source_sha256")
+        if name in sources and sources[name] != digest:
+            raise ValueError(f"{name}: conflicting source hashes in index")
+        sources[name] = digest
+    if not sources:
+        raise ValueError("cannot fingerprint an empty legal index")
+    canonical = json.dumps(sources, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def check_source_snapshots(dataset: BenchmarkDataset, index_dir: str | Path) -> None:
@@ -170,6 +198,10 @@ def check_source_snapshots(dataset: BenchmarkDataset, index_dir: str | Path) -> 
     for record in records:
         name = Path(record.source).name
         actual.setdefault(name, set()).add(str(record.metadata.get("source_sha256", "")))
+    if dataset.corpus_sha256 is not None:
+        actual_digest = corpus_snapshot_digest(index_dir)
+        if dataset.corpus_sha256 != actual_digest:
+            raise ValueError("legal benchmark corpus differs from reviewed snapshot")
     for case in dataset.cases:
         if case.review_status != "approved":
             continue
@@ -241,6 +273,7 @@ def evaluate_safety(service: QuestionAnsweringService, dataset: BenchmarkDataset
         "dataset_id": dataset.dataset_id,
         "dataset_kind": dataset.kind,
         "dataset_sha256": dataset.digest_sha256,
+        "corpus_sha256": dataset.corpus_sha256,
         "case_count": len(outcomes),
         "approved_cases": sum(case.review_status == "approved" for case in dataset.cases),
         "legal_accuracy_established": False,
