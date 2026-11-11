@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from .qa import AnswerCitation, LegalAnswer
 from .retrieval import RetrievedChunk
@@ -67,6 +68,23 @@ def verify_citations(
         valid, reason = _matches_chunk(citation, chunk)
         checks.append(CitationCheck(citation.chunk_id, valid, reason))
 
+    # Check citations in the *model output*, not merely citations attached
+    # automatically from retrieved context. This is an integrity check, not
+    # a semantic entailment or legal-correctness guarantee.
+    labels = re.findall(r"\\[SOURCE[^\\]\\n]*\\]", answer.answer)
+    allowed = {
+        f"[SOURCE {chunk.rank}: {chunk.citation}]": chunk.chunk_id
+        for chunk in chunks
+    }
+    cited_ids = {citation.chunk_id for citation in answer.citations}
+    if not labels:
+        checks.append(CitationCheck("", False, "answer contains no inline source label"))
+    for label in labels:
+        if label not in allowed:
+            checks.append(CitationCheck("", False, f"unknown inline source label: {label}"))
+        elif allowed[label] not in cited_ids:
+            checks.append(CitationCheck(allowed[label], False, "inline label not attached to answer"))
+
     if not answer.citations:
         checks.append(
             CitationCheck(
@@ -77,7 +95,7 @@ def verify_citations(
         )
 
     verified_count = sum(check.verified for check in checks)
-    all_verified = bool(answer.citations) and all(check.verified for check in checks)
+    all_verified = bool(answer.citations) and bool(labels) and all(check.verified for check in checks)
     return CitationVerificationReport(
         verified=all_verified,
         checks=tuple(checks),

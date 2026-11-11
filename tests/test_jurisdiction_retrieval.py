@@ -20,7 +20,7 @@ def chunk(chunk_id, score, jurisdiction):
 
 class Provider(LLMProvider):
     def generate(self, *, question: str, context: str) -> str:
-        return "Grounded answer."
+        return f"Grounded answer. {context.splitlines()[0]}"
 
 
 class FilterAwareRetriever:

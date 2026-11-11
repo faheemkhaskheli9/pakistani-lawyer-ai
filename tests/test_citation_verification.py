@@ -32,8 +32,8 @@ def citation(chunk_id="c1", source="law.txt", section="Section 5"):
     )
 
 
-def answer(*citations):
-    return LegalAnswer(question="Q?", answer="A.", citations=tuple(citations))
+def answer(*citations, text="[SOURCE 1: law.txt, Section 5] A."):
+    return LegalAnswer(question="Q?", answer=text, citations=tuple(citations))
 
 
 def test_valid_citation_is_verified():
@@ -71,7 +71,7 @@ def test_answer_without_citations_is_not_verified():
 
 class Provider(LLMProvider):
     def generate(self, *, question: str, context: str) -> str:
-        return "Grounded answer."
+        return f"Grounded answer. {context.splitlines()[0]}"
 
 
 class Retriever:
@@ -90,3 +90,31 @@ def test_qa_service_exposes_verified_citation_report():
     assert result.answer is not None
     assert result.citation_verification is not None
     assert result.citation_verification.verified is True
+
+def test_uncited_answer_is_rejected():
+    report = verify_citations(answer(citation(), text="The law allows this."), [chunk()])
+    assert report.verified is False
+    assert any("no inline source label" in check.reason for check in report.checks)
+
+
+def test_fabricated_inline_citation_is_rejected():
+    report = verify_citations(
+        answer(citation(), text="Claim [SOURCE 1: law.txt, Section 5] [SOURCE 99: fake]"),
+        [chunk()],
+    )
+    assert report.verified is False
+    assert any("unknown inline source label" in check.reason for check in report.checks)
+
+
+def test_service_withholds_answer_without_inline_citation():
+    class UncitedProvider(LLMProvider):
+        def generate(self, *, question: str, context: str) -> str:
+            return "An unsupported legal conclusion."
+
+    result = QuestionAnsweringService(
+        Retriever(),
+        generator=AnswerGenerator(UncitedProvider()),
+        min_score=0.2,
+    ).ask("Question?")
+    assert result.status == "citation_verification_failed"
+    assert result.answer is None

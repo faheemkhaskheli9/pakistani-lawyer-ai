@@ -48,7 +48,15 @@ def build_legal_answer(
     chunks: list[RetrievedChunk],
 ) -> LegalAnswer:
     """Attach citations only for chunks actually supplied to generation."""
-    used_ids = set(generated.context_chunk_ids)
+    # Only expose sources that the generated answer actually cites. Context
+    # availability alone is not evidence that a claim references a source.
+    context_ids = set(generated.context_chunk_ids)
+    used_ids = {
+        chunk.chunk_id
+        for chunk in chunks
+        if chunk.chunk_id in context_ids
+        and f"[SOURCE {chunk.rank}: {chunk.citation}]" in generated.answer
+    }
     citations = tuple(
         citation
         for chunk in chunks

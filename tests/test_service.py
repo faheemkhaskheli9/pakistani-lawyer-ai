@@ -30,7 +30,7 @@ class RecordingProvider(LLMProvider):
 
     def generate(self, *, question: str, context: str) -> str:
         self.calls += 1
-        return "Grounded answer."
+        return f"Grounded answer. {context.splitlines()[0]}"
 
 
 def chunk(score: float, chunk_id: str = "c1") -> RetrievedChunk:

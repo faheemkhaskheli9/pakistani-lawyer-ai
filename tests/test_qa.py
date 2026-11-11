@@ -9,7 +9,7 @@ from legal_core.retrieval import RetrievedChunk
 
 class StaticProvider(LLMProvider):
     def generate(self, *, question: str, context: str) -> str:
-        return "The retrieved source addresses the question."
+        return f"The retrieved source addresses the question. {context.splitlines()[0]}"
 
 
 def chunk(
@@ -47,7 +47,7 @@ def test_answer_includes_specific_source_and_section_citations():
     assert "Consent is not free" in citation.excerpt
 
 
-def test_all_grounding_chunks_are_exposed_as_citations():
+def test_only_inline_referenced_chunks_are_exposed_as_citations():
     response = answer_from_chunks(
         "Question?",
         [
@@ -56,7 +56,7 @@ def test_all_grounding_chunks_are_exposed_as_citations():
         ],
         generator=AnswerGenerator(StaticProvider()),
     )
-    assert [c.chunk_id for c in response.citations] == ["one", "two"]
+    assert [c.chunk_id for c in response.citations] == ["one"]
 
 
 def test_chunk_not_used_for_generation_is_not_presented_as_cited():
@@ -64,7 +64,7 @@ def test_chunk_not_used_for_generation_is_not_presented_as_cited():
     unrelated = chunk("not-used", section="Section 99", rank=2)
     generated = GeneratedAnswer(
         question="Question?",
-        answer="Answer.",
+        answer="Answer. [SOURCE 1: sample_civil_code.txt, Section 3]",
         context_chunk_ids=("used",),
     )
 

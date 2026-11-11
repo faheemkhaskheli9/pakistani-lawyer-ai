@@ -45,7 +45,7 @@ def test_analysis_normalizes_query_whitespace():
 
 class Provider(LLMProvider):
     def generate(self, *, question: str, context: str) -> str:
-        return "Grounded answer."
+        return f"Grounded answer. {context.splitlines()[0]}"
 
 
 class Retriever:

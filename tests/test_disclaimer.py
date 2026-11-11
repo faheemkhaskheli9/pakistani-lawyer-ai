@@ -19,7 +19,7 @@ class StubRetriever:
 
 class Provider(LLMProvider):
     def generate(self, *, question: str, context: str) -> str:
-        return "Grounded answer."
+        return f"Grounded answer. {context.splitlines()[0]}"
 
 
 def chunk(score=0.9):
