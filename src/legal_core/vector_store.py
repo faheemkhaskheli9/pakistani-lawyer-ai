@@ -148,6 +148,25 @@ class VectorStore:
             for id_ in self._ids
         ]
 
+    def prune_except(self, valid_ids: set[str]) -> int:
+        """Remove obsolete vector rows without disturbing the remaining order."""
+        with exclusive_lock(self._lock_path()):
+            self._reset()
+            self._load()
+            keep = [i for i, id_ in enumerate(self._ids) if id_ in valid_ids]
+            removed = len(self._ids) - len(keep)
+            if not removed:
+                return 0
+            ids = [self._ids[i] for i in keep]
+            self._vectors = self._vectors[keep, :] if keep else None
+            self._documents = {id_: self._documents[id_] for id_ in ids}
+            self._metadata = {id_: self._metadata[id_] for id_ in ids}
+            self._ids = ids
+            if not ids:
+                self.dimension = None
+            self._save()
+            return removed
+
     def upsert(self, id_: str, embedding: list[float], document: str, metadata: dict[str, Any] | None = None) -> None:
         # Re-read under the lock so concurrent writers merge instead of
         # overwriting each other's rows with a stale in-memory snapshot.

@@ -66,6 +66,41 @@ class ChunkStore:
                 self._records[record.id] = record
             self._save()
 
+    def replace_source(self, source: str, records: List[ChunkRecord]) -> None:
+        """Atomically replace a document's chunks, removing superseded versions."""
+        if any(record.source != source for record in records):
+            raise ValueError("replacement records must all belong to the same source")
+        with exclusive_lock(self._lock_path()):
+            self._records = {}
+            self._load()
+            self._records = {
+                key: record
+                for key, record in self._records.items()
+                if record.source != source
+            }
+            for record in records:
+                self._records[record.id] = record
+            self._save()
+
+    def prune_missing_sources(self, directory: str | Path, present: set[str]) -> int:
+        """Remove indexed documents deleted from the selected corpus directory."""
+        root = Path(directory).resolve()
+        current = {str(Path(source).resolve()) for source in present}
+        with exclusive_lock(self._lock_path()):
+            self._records = {}
+            self._load()
+            obsolete = [
+                key
+                for key, record in self._records.items()
+                if Path(record.source).resolve().is_relative_to(root)
+                and str(Path(record.source).resolve()) not in current
+            ]
+            if obsolete:
+                for key in obsolete:
+                    del self._records[key]
+                self._save()
+            return len(obsolete)
+
     def __len__(self) -> int:
         return len(self._records)
 

@@ -52,6 +52,7 @@ def test_editing_a_chunk_creates_a_new_id_not_a_silent_overwrite(tmp_path):
     assert store.get_ids() != original_ids
     texts = {r.text for r in store.all()}
     assert any("Edited text" in t for t in texts)
+    assert not any("Original text" in t for t in texts)
 
 
 def test_ingest_file_raises_for_malformed_document(tmp_path):
@@ -92,3 +93,26 @@ def test_iter_source_files_only_returns_supported_extensions(tmp_path):
 
     names = {p.name for p in files}
     assert names == {"a.txt", "c.pdf"}
+
+def test_deleted_source_is_removed_from_corpus_store(tmp_path):
+    pipeline, store = make_pipeline(tmp_path)
+    doc = tmp_path / "act.txt"
+    doc.write_text("Section 1. Repealed content.", encoding="utf-8")
+    pipeline.ingest_directory(tmp_path)
+    assert len(store) > 0
+
+    doc.unlink()
+    pipeline.ingest_directory(tmp_path)
+    assert len(store) == 0
+
+
+def test_empty_document_replaces_old_chunks(tmp_path):
+    pipeline, store = make_pipeline(tmp_path)
+    doc = tmp_path / "act.txt"
+    doc.write_text("Section 1. Old text.", encoding="utf-8")
+    pipeline.ingest_file(doc)
+    assert len(store) > 0
+
+    doc.write_text("", encoding="utf-8")
+    assert pipeline.ingest_file(doc) == 0
+    assert len(store) == 0

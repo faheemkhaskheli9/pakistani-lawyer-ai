@@ -19,6 +19,9 @@ def embed_new_chunks(store: ChunkStore, embedder: EmbeddingProvider, vector_stor
     Returns the number of chunks actually embedded (0 if the vector store
     was already up to date with `store`).
     """
+    # Remove embeddings for superseded/deleted source chunks before indexing
+    # new ones, so obsolete law cannot remain discoverable.
+    vector_store.prune_except(store.get_ids())
     pending = [record for record in store.all() if record.id not in vector_store]
     if not pending:
         return 0

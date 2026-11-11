@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import logging
 import sys
 from pathlib import Path
@@ -40,8 +41,9 @@ from .vector_store import VectorStore
 logger = logging.getLogger(__name__)
 
 
-def _chunk_id(source: str, chunk_index: int, chunk: str) -> str:
-    digest = hashlib.sha256(f"{source}::{chunk_index}::{chunk}".encode("utf-8")).hexdigest()
+def _chunk_id(source: str, chunk_index: int, chunk: str, metadata: dict | None = None) -> str:
+    version = json.dumps(metadata or {}, sort_keys=True, ensure_ascii=False)
+    digest = hashlib.sha256(f"{source}::{chunk_index}::{chunk}::{version}".encode("utf-8")).hexdigest()
     return digest
 
 
@@ -68,29 +70,23 @@ class IngestionPipeline:
         """
         text = read_source_text(path)
         chunks = chunk_text(text, self.chunk_size, self.chunk_overlap)
-        if not chunks:
-            logger.info("No content chunks extracted from %s", path)
-            return 0
-
         legal_metadata = load_legal_metadata(path, text=text).to_dict()
         tracker = StatuteStructureTracker()
         records = []
         for i, chunk in enumerate(chunks):
             structure = tracker.update(chunk).to_dict()
+            metadata = {**legal_metadata, "statute_structure": structure}
             records.append(
                 ChunkRecord(
-                    id=_chunk_id(str(path), i, chunk),
+                    id=_chunk_id(str(path), i, chunk, metadata),
                     source=str(path),
                     section=extract_section_id(chunk, i),
                     chunk_index=i,
                     text=chunk,
-                    metadata={
-                        **legal_metadata,
-                        "statute_structure": structure,
-                    },
+                    metadata=metadata,
                 )
             )
-        self.store.upsert(records)
+        self.store.replace_source(str(path), records)
         logger.info("Ingested %s: %d chunks", path, len(records))
         return len(records)
 
@@ -101,12 +97,15 @@ class IngestionPipeline:
         continues with the remaining files rather than aborting the run.
         """
         total = 0
-        for path in iter_source_files(source_dir):
+        files = iter_source_files(source_dir)
+        for path in files:
             try:
                 total += self.ingest_file(path)
             except DocumentParseError as exc:
-                logger.error("Skipping malformed source document %s: %s", path, exc)
+                logger.error("Dropping unparseable source document %s: %s", path, exc)
+                self.store.replace_source(str(path), [])
                 continue
+        self.store.prune_missing_sources(source_dir, {str(path) for path in files})
         logger.info("Ingestion run complete: %d chunks written from %s", total, source_dir)
         return total
 

@@ -62,3 +62,45 @@ def test_vector_store_metadata_carries_source_and_section(tmp_path):
     results = vector_store.query(HashingEmbedder(dimension=32).embed(["contract law basics"])[0], top_k=1)
     assert results[0].metadata["source"] == "statute.txt"
     assert results[0].metadata["section"] == "s1"
+
+def test_deleted_or_amended_source_is_removed_from_vector_index(tmp_path):
+    from legal_core.ingest import run_ingestion
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    doc = corpus / "act.txt"
+    doc.write_text("Section 1. Old rule.", encoding="utf-8")
+    index = tmp_path / "index"
+    run_ingestion(corpus, index, embedding_provider="hashing")
+    original = VectorStore(index / "vectors")
+    assert len(original) > 0
+
+    doc.write_text("Section 1. New rule.", encoding="utf-8")
+    run_ingestion(corpus, index, embedding_provider="hashing")
+    updated = VectorStore(index / "vectors")
+    assert len(updated) > 0
+    assert all("Old rule" not in entry.document for entry in updated.entries())
+    assert any("New rule" in entry.document for entry in updated.entries())
+
+    doc.unlink()
+    run_ingestion(corpus, index, embedding_provider="hashing")
+    assert len(VectorStore(index / "vectors")) == 0
+
+
+def test_metadata_version_change_replaces_indexed_source(tmp_path):
+    import json
+
+    from legal_core.ingest import run_ingestion
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "act.txt").write_text("Section 1. Valid text.", encoding="utf-8")
+    manifest = corpus / "legal_metadata.json"
+    index = tmp_path / "index"
+    manifest.write_text(json.dumps({"act.txt": {"effective_date": "2020-01-01"}}), encoding="utf-8")
+    run_ingestion(corpus, index)
+    manifest.write_text(json.dumps({"act.txt": {"effective_date": "2025-01-01"}}), encoding="utf-8")
+    run_ingestion(corpus, index)
+    entries = VectorStore(index / "vectors").entries()
+    assert entries
+    assert all(row.metadata["effective_date"] == "2025-01-01" for row in entries)
