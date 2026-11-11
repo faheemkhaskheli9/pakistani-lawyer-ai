@@ -105,7 +105,7 @@ class IngestionPipeline:
                 logger.error("Dropping unparseable source document %s: %s", path, exc)
                 self.store.replace_source(str(path), [])
                 continue
-        self.store.prune_missing_sources(source_dir, {str(path) for path in files})
+        self.store.prune_missing_sources({str(path) for path in files})
         logger.info("Ingestion run complete: %d chunks written from %s", total, source_dir)
         return total
 

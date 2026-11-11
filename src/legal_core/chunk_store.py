@@ -82,9 +82,8 @@ class ChunkStore:
                 self._records[record.id] = record
             self._save()
 
-    def prune_missing_sources(self, directory: str | Path, present: set[str]) -> int:
-        """Remove indexed documents deleted from the selected corpus directory."""
-        root = Path(directory).resolve()
+    def prune_missing_sources(self, present: set[str]) -> int:
+        """Make an index correspond to exactly one selected corpus directory."""
         current = {str(Path(source).resolve()) for source in present}
         with exclusive_lock(self._lock_path()):
             self._records = {}
@@ -92,8 +91,7 @@ class ChunkStore:
             obsolete = [
                 key
                 for key, record in self._records.items()
-                if Path(record.source).resolve().is_relative_to(root)
-                and str(Path(record.source).resolve()) not in current
+                if str(Path(record.source).resolve()) not in current
             ]
             if obsolete:
                 for key in obsolete:

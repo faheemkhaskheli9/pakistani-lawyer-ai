@@ -104,3 +104,20 @@ def test_metadata_version_change_replaces_indexed_source(tmp_path):
     entries = VectorStore(index / "vectors").entries()
     assert entries
     assert all(row.metadata["effective_date"] == "2025-01-01" for row in entries)
+
+def test_switching_corpus_directories_cannot_retain_old_documents(tmp_path):
+    from legal_core.ingest import run_ingestion
+
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    (a / "old.txt").write_text("Section 1. Superseded source.", encoding="utf-8")
+    (b / "new.txt").write_text("Section 2. New source.", encoding="utf-8")
+    index = tmp_path / "index"
+
+    run_ingestion(a, index)
+    run_ingestion(b, index)
+    entries = VectorStore(index / "vectors").entries()
+    assert entries
+    assert all("Superseded" not in row.document for row in entries)
+    assert any("New source" in row.document for row in entries)
